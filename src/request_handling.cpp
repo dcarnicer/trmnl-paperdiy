@@ -68,6 +68,14 @@ void resetIfRequested(https_request_err_e request_result) {
 }
 
 void updateFirmwareIfDue(void) {
+#ifdef DISABLE_FIRMWARE_UPDATE
+  // The server would offer another board's firmware (e.g. the PaperS3 build to a PaperDIY
+  // reporting that model), and under M5Launcher an OTA write can overwrite another app
+  if (apiDisplayResult.response.update_firmware) {
+    Log.info("%s [%d]: firmware update offered but disabled on this board\r\n", __FILE__, __LINE__);
+  }
+  return;
+#endif
   // OTA update checking
   if (firmwareUpdateService.isUpdateDue(apiDisplayResult.response.update_firmware,
                                         apiDisplayResult.response.firmware_url)) {

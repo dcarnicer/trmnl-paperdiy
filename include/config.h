@@ -138,7 +138,13 @@
 
 // Battery measurement types
 // BATT_NONE = use fake voltage
-enum { BATT_NONE = 0, BATT_ADC, BATT_BQ27220, BATT_BQ27427, BATT_AXP2101 };
+enum { BATT_NONE = 0, BATT_ADC, BATT_BQ27220, BATT_BQ27427, BATT_AXP2101, BATT_M5PM1 };
+
+// Model name sent in the Model header; a board can report the server model of a
+// compatible device while keeping its own entry in the device list
+#ifndef API_DEVICE_MODEL
+#define API_DEVICE_MODEL DEVICE_MODEL
+#endif
 
 #ifdef PARALLEL_EPD
 // TRMNL Device structure (slightly different for parallel eink panels)

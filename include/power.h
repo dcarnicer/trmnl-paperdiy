@@ -10,6 +10,8 @@
 #define INCLUDE_TCA9535_POWER
 #elif defined(BOARD_TRMNL_GEN2)
 #define INCLUDE_GPIO_POWER
+#elif defined(BOARD_TRMNL_X_PAPERDIY)
+#define INCLUDE_M5PM1_POWER
 #endif
 
 /// @brief USB/charger status source. The base class reports UNKNOWN, for
@@ -56,6 +58,15 @@ private:
   uint8_t _statPin;
 };
 #endif // INCLUDE_TCA9535_POWER
+
+#ifdef INCLUDE_M5PM1_POWER
+/// @brief Reads USB presence and CHG_STAT through the M5PM1 PMIC (M5Stack PaperDIY).
+class M5PM1Power : public BasePower {
+public:
+  UsbStatus usbStatus() override;
+  ChargingStatus chargingStatus() override;
+};
+#endif // INCLUDE_M5PM1_POWER
 
 /// @brief Power status source for the running board, selected at compile time.
 BasePower &power();

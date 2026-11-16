@@ -20,6 +20,10 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 
+#ifdef BOARD_TRMNL_X_PAPERDIY
+#include <paperdiy_board.h>
+#endif
+
 #ifdef BOARD_TRMNL_X
 #include <iqs323_task.h>
 #include <touchbar_gesture.h>
@@ -126,6 +130,9 @@ static void enterSleep(bool keep_timer) {
   gpio_deep_sleep_hold_en(); // Needed to keep the battery power enabled during RTC sleep
 #endif
 #endif
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  paperdiy::prepareForDeepSleep();
+#endif
   esp_deep_sleep_start();
 }
 
@@ -178,6 +185,9 @@ void goToSleepButtonOnly(void) {
 #ifdef BOARD_XTEINK_X4
   gpio_hold_en(GPIO_NUM_13);
   gpio_deep_sleep_hold_en();
+#endif
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  paperdiy::prepareForDeepSleep();
 #endif
   esp_deep_sleep_start();
 }

@@ -73,7 +73,7 @@ ApiDisplayInputs createApiHeaders() {
   inputs.firmwareCommit = String(FW_COMMIT);
   inputs.displayWidth = display_width();
   inputs.displayHeight = display_height();
-  inputs.model = DEVICE_MODEL;
+  inputs.model = API_DEVICE_MODEL;
   inputs.panelId = display_panel_rev_string();
   inputs.specialFunction = special_function;
   inputs.specialFunctionChosen = special_function_chosen;

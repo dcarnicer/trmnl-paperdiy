@@ -3,6 +3,9 @@
 #include <Wire.h>
 #include <battery.h>
 #include <config.h>
+#ifdef BOARD_TRMNL_X_PAPERDIY
+#include <paperdiy_board.h>
+#endif
 #if ESP_ARDUINO_VERSION_MAJOR < 3 // IDF 4.4; IDF 5's new ADC driver must not be mixed with the legacy one
 #include <driver/adc.h>
 #endif
@@ -69,6 +72,12 @@ float ADCBattery::readVoltage(TRMNL_DEVICE *pDevice) {
     sensorValue = __builtin_bswap16(sensorValue); // this chip is big-endian
     sensorValue &= 0x3fff; // top 2 bits are config info
     return (float)sensorValue / 1000.0f;
+  } else if (pDevice->batt_type == BATT_M5PM1) {
+#ifdef BOARD_TRMNL_X_PAPERDIY
+    return paperdiy::batteryVolts();
+#else
+    return -1.0f; // the M5PM1 is only wired up for the PaperDIY
+#endif
   } else { // BQ2742x
     Wire.begin(pDevice->sensor_sda, pDevice->sensor_scl);
     int16_t sensorValue = readReg16(0x55, 4); // current battery voltage in millivolts (registers 4+5)

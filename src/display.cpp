@@ -24,6 +24,10 @@ FASTEPD bbep;
 BBEPAPER bbep;
 #endif // !PARALLEL_EPD
 
+#ifdef BOARD_TRMNL_X_PAPERDIY
+#include <paperdiy_board.h>
+#endif
+
 #ifdef PARALLEL_EPD
 #include "driver/gpio.h"
 #include "driver/rtc_io.h"
@@ -172,6 +176,10 @@ void display_init(void) {
                   EPD_VCC_EN);
   bbep.setPanelSize(BBEP_DISPLAY_ED103TC2);
 #else // normal parallel eink devices
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  // Same panel bus as the PaperS3, but its supply also needs the M5PM1 EPD rail
+  paperdiy::setEpdRail(true);
+#endif
   bbep.initPanel(pDevice->iBoardType);
   if (pDevice->iPanelSize != BB_PANEL_NONE) {
     bbep.setPanelSize(pDevice->iPanelSize);
@@ -493,5 +501,8 @@ void display_sleep(void) {
 #else
   bbep.einkPower(0);
   bbep.deInit();
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  paperdiy::setEpdRail(false);
+#endif
 #endif
 }
