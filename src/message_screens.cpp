@@ -20,6 +20,11 @@ template <typename T> static void draw_centered_line(const T &text, int y) {
   bbep.println(text);
 }
 
+static void draw_battery_empty_message(void) {
+  draw_centered_line("Battery empty.", bbep.height() - 160);
+  draw_centered_line("Charge it, then press the power button.", bbep.height() - 120);
+}
+
 static void draw_otg_turned_on_message(void) {
   const char string1[] = "OTG turned on!";
   draw_centered_line(string1, 430);
@@ -540,6 +545,9 @@ void display_show_msg(uint8_t *image_buffer, MSG message_type, const char *messa
     break;
   case CAPTIVE_WIFI_TIMEOUT:
     draw_captive_wifi_timeout_message();
+    break;
+  case BATTERY_EMPTY:
+    draw_battery_empty_message();
     break;
   default:
     break;

@@ -39,6 +39,7 @@ enum MSG {
   WIFI_RETRY_LIMIT,
   CAPTIVE_WIFI_TIMEOUT,
   IMAGE_DOWNLOAD_FAILED,
+  BATTERY_EMPTY,
 };
 
 typedef struct theBrand {

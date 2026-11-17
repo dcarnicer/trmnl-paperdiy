@@ -1,0 +1,14 @@
+{
+  "name": "TRMNL for PaperDIY (community port)",
+  "description": "TRMNL e-ink dashboard firmware for the M5Stack PaperDIY (K159): shows screens from TRMNL's cloud or a self-hosted server (BYOS, e.g. LaraPaper). On battery it switches itself off through the M5PM1 between refreshes. Not for PaperS3.",
+  "keywords": "TRMNL, dashboard, e-ink, BYOS, LaraPaper, PaperDIY, M5Stack",
+  "author": "dcarnicer",
+  "repository": "https://github.com/dcarnicer/trmnl-paperdiy",
+  "firmware_category": {
+    "path": "firmware",
+    "device": ["M5Stack PaperDIY"],
+    "default_baud": 921600
+  },
+  "version": "1.8.20-1",
+  "framework": "Arduino"
+}

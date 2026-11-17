@@ -8,4 +8,5 @@ namespace DisplayedImage {
   bool exists();
   bool matches(const char *filename);
   char *get(); // the last image drawn, also while covered
+  bool isCovered();
 } // namespace DisplayedImage

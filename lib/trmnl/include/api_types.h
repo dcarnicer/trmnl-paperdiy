@@ -49,6 +49,7 @@ struct ApiDisplayInputs {
   uint32_t refreshRate;
   String macAddress;
   float batteryVoltage;
+  int batteryPercent = -1; // sent as Percent-Charged when >= 0 (boards without a fuel gauge)
   ChargingStatus chargingStatus;
 #ifdef BOARD_TRMNL_X
   int batteryCount;

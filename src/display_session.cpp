@@ -1,3 +1,6 @@
+#ifdef BOARD_TRMNL_X_PAPERDIY
+#include <paperdiy_battery.h>
+#endif
 #include <ArduinoLog.h>
 #include <Preferences.h>
 #include <WiFi.h>
@@ -477,6 +480,9 @@ static ApiDisplayInputs loadApiDisplayInputs(Preferences &preferences, float bat
   ApiDisplayInputs inputs = createApiHeaders();
   inputs.baseUrl = preferences.getString(PREFERENCES_API_URL, API_BASE_URL);
   inputs.batteryVoltage = batteryVoltage; // read before the display and WiFi were turned on
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  inputs.batteryPercent = paperdiy_battery::reportPercent(batteryVoltage);
+#endif
   last_wifi_rssi = inputs.rssi;
   Log.info("%s [%d]: baseUrl from preferences: %s\r\n", __FILE__, __LINE__, inputs.baseUrl.c_str());
   return inputs;

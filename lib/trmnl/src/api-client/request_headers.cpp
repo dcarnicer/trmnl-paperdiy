@@ -9,6 +9,7 @@ HttpHeaderList buildDisplayHeaders(const ApiDisplayInputs &inputs) {
   headers.push_back({"Access-Token", inputs.apiKey});
   headers.push_back({"Refresh-Rate", String(inputs.refreshRate)});
   headers.push_back({"Battery-Voltage", String(inputs.batteryVoltage)});
+  if (inputs.batteryPercent >= 0) headers.push_back({"Percent-Charged", String(inputs.batteryPercent)});
 
   if (inputs.chargingStatus != ChargingStatus::UNKNOWN)
     headers.push_back({"Battery-Charging", String(inputs.chargingStatus == ChargingStatus::CHARGING ? "1" : "0")});
@@ -31,6 +32,9 @@ HttpHeaderList buildDisplayHeaders(const ApiDisplayInputs &inputs) {
   headers.push_back({"FW-Version", inputs.firmwareVersion});
   if (inputs.firmwareCommit.length() > 0) headers.push_back({"FW-Commit", inputs.firmwareCommit});
   headers.push_back({"Model", String(inputs.model)});
+#ifdef API_DEVICE_MODEL_ID
+  headers.push_back({"Model-Id", API_DEVICE_MODEL_ID}); // BYOS servers assign this model on Auto-Join
+#endif
   if (inputs.panelId.length() > 0) headers.push_back({"Panel-Rev", inputs.panelId});
   headers.push_back({"Image-Cached", inputs.imageCached ? "true" : "false"});
   headers.push_back({"Wake-Time", String(inputs.prevWakeTime)});
@@ -61,6 +65,9 @@ HttpHeaderList buildSetupHeaders(const ApiSetupInputs &inputs) {
   headers.push_back({"Content-Type", "application/json"});
   headers.push_back({"FW-Version", inputs.firmwareVersion});
   headers.push_back({"Model", inputs.model});
+#ifdef API_DEVICE_MODEL_ID
+  headers.push_back({"Model-Id", API_DEVICE_MODEL_ID});
+#endif
   if (inputs.panelId.length() > 0) headers.push_back({"Panel-Rev", inputs.panelId});
   headers.push_back({"Width", String(inputs.displayWidth)});
   headers.push_back({"Height", String(inputs.displayHeight)});

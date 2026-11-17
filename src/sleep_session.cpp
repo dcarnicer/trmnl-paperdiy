@@ -22,6 +22,7 @@
 
 #ifdef BOARD_TRMNL_X_PAPERDIY
 #include <paperdiy_board.h>
+#include <paperdiy_sleep_state.h>
 #endif
 
 #ifdef BOARD_TRMNL_X
@@ -99,7 +100,15 @@ static void enterSleep(bool keep_timer) {
   Log.info("%s [%d]: total awake time - %d ms\r\n", __FILE__, __LINE__, iPrevWakeTime);
   Log.info("%s [%d]: time to sleep - %d\r\n", __FILE__, __LINE__, time_to_sleep);
   if (!keep_timer) preferences.putUInt(PREFERENCES_LAST_SLEEP_TIME, systemClock().getTime());
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  // On battery, switch the whole board off and let the PM1 timer turn it back on
+  const bool pm1_power_off = paperdiy::onBattery();
+  if (pm1_power_off) paperdiy_sleep_state::save();
+#endif
   preferences.end();
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  if (pm1_power_off) paperdiy::powerOffFor(time_to_sleep); // returns only if the PM1 kept the power on
+#endif
   esp_sleep_enable_timer_wakeup(sleep_us);
   // Configure GPIO pin for wakeup
 #if CONFIG_IDF_TARGET_ESP32
@@ -167,7 +176,14 @@ void goToSleepButtonOnly(void) {
   }
   WiFi.mode(WIFI_OFF);
   filesystem_deinit();
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  const bool pm1_power_off = paperdiy::onBattery();
+  if (pm1_power_off) paperdiy_sleep_state::save();
+#endif
   preferences.end();
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  if (pm1_power_off) paperdiy::powerOffFor(0); // the power button turns it back on
+#endif
 #if CONFIG_IDF_TARGET_ESP32
 #define BUTTON_PIN_BITMASK_BTN(GPIO) (1ULL << GPIO)
   esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK_BTN(pDevice->interrupt_pin), ESP_EXT1_WAKEUP_ALL_LOW);

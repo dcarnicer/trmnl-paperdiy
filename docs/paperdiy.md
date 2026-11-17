@@ -13,18 +13,80 @@ que cambia es el PMIC M5PM1.
 | Panel | FastEPD `BB_PANEL_M5PAPERS3` | Igual, y además el GPIO2 del M5PM1 (raíl EPD) se enciende antes del panel y se apaga al dormir |
 | Batería | ADC en GPIO3 | M5PM1 (`VBAT`, I²C 41/42, 0x6E). En la PaperDIY, GPIO3 es el botón B |
 | Carga y USB | No se leen | `CHG_STAT` (GPIO3 del PM1) y `PWR_SRC` del PM1 |
-| Botón TRMNL | Ninguno | A (GPIO4), que también despierta del deep sleep |
-| Alimentación | — | `CHG_EN` y DCDC de 5 V activados en cada arranque; corte por batería baja a 3,4 V |
+| Botón TRMNL | Ninguno | A (GPIO4). Despierta del deep sleep (con USB); con batería, el que despierta es el de encendido |
+| Alimentación | — | `CHG_EN` y DCDC de 5 V activados en cada arranque; corte por batería baja (LVP del PM1) a 3,0 V |
+| Sueño | Deep sleep del ESP32 | Con batería, apagado completo por el PM1 y encendido con su temporizador; con USB, deep sleep |
 | OTA | El servidor la ofrece | Desactivada (`DISABLE_FIRMWARE_UPDATE`) |
-| Modelo enviado | `m5_papers3` | `m5_papers3` (`API_DEVICE_MODEL`); en la lista interna es `m5_paperdiy` |
+| Modelo enviado | `m5_papers3` | `Model: m5_papers3` (`API_DEVICE_MODEL`) y `Model-Id: m5_paper_s3` (`API_DEVICE_MODEL_ID`); en la lista interna es `m5_paperdiy` |
 
 La OTA está desactivada porque el servidor, al ver el modelo de la PaperS3,
 mandaría el firmware de la PaperS3, y porque con M5Launcher una escritura OTA
 puede machacar otra app instalada. Para actualizar, instala una imagen nueva.
 
-El código propio de la placa está en `include/paperdiy_board.h` y
-`src/paperdiy_board.cpp`. Los cambios en el código común van tras
-`#ifdef BOARD_TRMNL_X_PAPERDIY`.
+El código propio de la placa está en `include/paperdiy_board.h`,
+`src/paperdiy_board.cpp` y `src/paperdiy_sleep_state.cpp`. Los cambios en el
+código común van tras `#ifdef BOARD_TRMNL_X_PAPERDIY` (y la cabecera
+`Model-Id`, tras `#ifdef API_DEVICE_MODEL_ID`).
+
+### Sueño con el PM1
+
+Con batería (sin USB), el firmware no usa el deep sleep del ESP32: programa el
+temporizador del M5PM1 (`TIM_CNT` 0x38–0x3B, `TIM_CFG` 0x3C con acción
+POWERON, `TIM_KEY` 0xA5) y le pide que apague todo (`SYS_CMD` 0xA1). Al vencer
+el temporizador el PM1 enciende la placa, que arranca en frío:
+
+- `WAKE_SRC` (0x05) del PM1 dice que lo encendió el temporizador, y el firmware
+  lo trata como un despertar por tiempo (sin logo, `Update-Source: timer`). El
+  servidor ve `Reset-Reason: ESP_RST_POWERON`.
+- La RAM RTC se pierde, así que el estado `RTC_DATA_ATTR` (imagen en pantalla,
+  contador de refrescos parciales, estadísticas) va a NVS (`pd_sleep`) justo
+  antes del apagado y vuelve al arrancar.
+- Como no hay hora RTC, cada despertar sincroniza por NTP (unos 2 s más).
+- El botón A no puede despertarlo (el ESP32 está sin corriente): para refrescar
+  a mano, un clic en el de encendido.
+- Si el PM1 no apaga (por ejemplo, porque se ha enchufado el USB), sigue con el
+  deep sleep de siempre.
+
+Con USB se mantiene el deep sleep: el consumo da igual y el log serie sigue
+disponible.
+
+### Batería
+
+El M5PM1 no tiene medidor de carga, solo `VBAT` en mV. El porcentaje sale de
+la curva de descarga medida en esta placa por el port de CrossPoint
+([paperdiy-reader](https://github.com/dcarnicer/paperdiy-reader),
+`BatteryMonitor.cpp`): por defecto la celda 604050 de 1500 mAh (4,10 V = 100 %,
+3,43 V = 0 %), o la de 140 mAh del kit con `-D PAPERDIY_BATTERY_PROFILE_KIT`.
+Se envía en `Percent-Charged` y LaraPaper lo usa para el porcentaje y los
+avisos de batería baja.
+
+- Se mide al despertar, antes de encender la pantalla y la Wi-Fi.
+- Con USB y cargando, repite el último valor medido con batería (la tensión de
+  carga no dice nada del estado); con la carga terminada, 100 %.
+- Con batería aplica la curva con 8 mV de histéresis y guarda el valor en NVS
+  (`pd_batt_pct`).
+- Si con batería baja del 0 % de la curva, muestra "Battery empty" y se apaga
+  con el PM1 sin temporizador hasta que se cargue y se pulse el botón de
+  encendido. Es el corte que el lector hace a 3,4 V con el LVP del PM1, que
+  aquí no se puede usar (ver abajo).
+
+### Corte por batería baja (LVP del PM1)
+
+El PM1 corta la alimentación si `VBAT` baja del umbral de `BATT_LVP` (0x08). A
+3,4 V lo hacía en el primer refresco rápido de la pantalla con la batería en
+reposo a 4,17 V, siempre, y la placa quedaba apagada hasta una pulsación larga
+del botón de encendido. Solo con bajar el umbral a 3,0 V se arregló, así que el
+PM1 parece mirar la caída de `VBAT` bajo la carga del refresco. 3,0 V solo
+salta con la celda casi vacía. El lector de CrossPoint usa 3,4 V sin problema,
+pero pinta con M5GFX; los refrescos rápidos de FastEPD consumen más de golpe.
+
+### M5Launcher
+
+El firmware detecta Launcher (su partición residente tiene el subtipo `test`)
+y escribe en el log su configuración (`DDLB`, `LauncherOnKey`,
+`LauncherKeyLvl`, del namespace NVS `launcher`). Si no hay tecla configurada,
+avisa: cada encendido del PM1 pasaría antes por la pantalla de Launcher.
+Configura en Launcher `GPIO on boot starts Launcher` = **A**.
 
 ## Compilar
 
@@ -56,6 +118,22 @@ Launcher crea una partición `spiffs` de 448 KB para esta app porque la
 imagen la declara vacía. TRMNL guarda ahí la imagen actual, la anterior y el
 logo; con dashboards normales cabe.
 
+La partición de la app que crea Launcher es de 1472 KB y el firmware ocupa
+unos 1417 KB: queda poco margen si crece.
+
+Para actualizar solo TRMNL sin pasar por la SD, lee primero la tabla de
+particiones y graba `firmware.bin` en el offset de la app de TRMNL (en nuestra
+instalación, `trmnlp` en `0x750000`):
+
+```bash
+esptool.py --chip esp32s3 --port /dev/cu.usbmodemXXXX read_flash 0x8000 0xC00 pt.bin
+python gen_esp32part.py pt.bin          # busca la línea de TRMNL
+esptool.py --chip esp32s3 --port /dev/cu.usbmodemXXXX write_flash 0x750000 .pio/build/TRMNL_X_PAPERDIY/firmware.bin
+```
+
+Para entrar en modo descarga, mantén el botón de encendido unos 2 s (el LED
+rojo parpadea). Al terminar, un clic en ese botón arranca la app.
+
 ### Sin Launcher
 
 ```bash
@@ -63,6 +141,22 @@ esptool.py --chip esp32s3 --port /dev/cu.usbmodemXXXX write_flash 0x0 .pio/build
 ```
 
 Esto borra lo que hubiera instalado. Antes, haz una copia del firmware actual.
+
+## Releases
+
+Al subir un tag `paperdiy-vX.Y.Z-N` (X.Y.Z = versión de `include/config.h`,
+N = revisión del port), `.github/workflows/release-paperdiy.yml` compila
+`TRMNL_X_PAPERDIY` y publica:
+
+| Archivo | Uso |
+|---|---|
+| `trmnl-paperdiy-latest.bin` | Imagen completa (0x0) para M5Burner, esptool o M5Launcher |
+| `trmnl-paperdiy-<versión>-app.bin` | Solo la app, para actualizar bajo Launcher con esptool en el offset de su partición |
+
+`scripts/paperdiy/check_release_assets.py` comprueba que la app de las dos
+imágenes es la misma y avisa si deja de caber en la partición de 1472 KB de
+Launcher. Para publicar en M5Burner (y así en el catálogo de Launcher), ver
+`m5burner/README.md`.
 
 ## Primer arranque
 
@@ -76,11 +170,12 @@ Esto borra lo que hubiera instalado. Antes, haz una copia del firmware actual.
 
 ### Con LaraPaper
 
-- Auto-Join da de alta el dispositivo, pero **sin modelo**: LaraPaper solo lo
-  asigna con la cabecera `Model-Id`, que este firmware no envía. Edita el
-  dispositivo y elige **M5PaperS3** (960×540, PNG de 4 bits).
+- Auto-Join da de alta el dispositivo con el modelo **M5PaperS3** (960×540,
+  PNG de 4 bits) gracias a la cabecera `Model-Id: m5_paper_s3`. Desactiva
+  Auto-Join después.
 - Sin modelo, LaraPaper sirve el BMP de 800×480 de la TRMNL original, y con
-  FastEPD el firmware no dibuja BMP: la pantalla no cambia.
+  FastEPD el firmware no dibuja BMP: la pantalla no cambia. Si el dispositivo
+  ya existía sin modelo, asígnalo a mano.
 - Guardar el servidor en el portal también guarda la opción de log
   detallado, desactivada por defecto. A partir de ahí la variante `_dev` deja
   de escribir por USB. Se vuelve a activar desde el portal.
@@ -89,11 +184,12 @@ Esto borra lo que hubiera instalado. Antes, haz una copia del firmware actual.
 
 | Acción | Efecto |
 |---|---|
-| A, pulsación corta | Despierta y refresca |
+| A, pulsación corta | Despierta y refresca (solo con USB: con batería la placa está apagada) |
 | A, doble pulsación | Función especial asignada en el servidor |
 | A, 5–15 s | Olvida la Wi-Fi |
 | A, más de 15 s | Borra las credenciales del dispositivo |
-| Encendido (PM1), un clic | Reinicia el ESP32 (refresca) |
+| Encendido (PM1), un clic | Enciende o reinicia (refresca) |
+| Encendido (PM1), 2 s | Modo descarga (LED rojo parpadeando) |
 | Encendido (PM1), doble clic | Apaga. Para volver, pulsa encendido |
 | B | Sin uso |
 
@@ -113,13 +209,23 @@ BYOD:
       lo leía como pulsado. Se corrige con el pull-up RTC en
       `paperdiy::prepareForDeepSleep()`.
 
+Probado el 17/11/2026 con LaraPaper y bajo M5Launcher 3.0.0 (junto a
+CrossPoint):
+
+- [x] Instalación desde la SD de Launcher; LittleFS de 448 KB.
+- [x] `/api/setup` y `/api/display` contra LaraPaper, PNG de 960×540 a 4 bpp.
+- [x] Corte LVP a 3,0 V: el primer refresco rápido ya no apaga la placa.
+- [x] Cabecera `Model-Id: m5_paper_s3`.
+- [x] Con batería: apagado por el PM1 y encendido con su temporizador cada
+      120 s durante 15 minutos (`Reset-Reason: ESP_RST_POWERON`,
+      `Update-Source: timer`, `Wake-Time` recuperado de NVS). Con USB, deep
+      sleep.
+
 Pendiente:
 
-- [ ] Primera imagen real de `/api/display` (necesita licencia BYOD o un
-      servidor propio).
-- [ ] Lectura de USB y de carga con batería sola.
-- [ ] Consumo en deep sleep con el raíl EPD cortado. Si es alto, fase 2:
-      apagar con el temporizador del M5PM1 (`TIM_CNT`/`TIM_CFG`, acción
-      POWERON) en vez del deep sleep del ESP32.
-- [ ] Instalación y arranque desde M5Launcher; LittleFS de 448 KB.
+- [x] `Percent-Charged` con USB (carga terminada: 100 %) y detección de
+      Launcher con la tecla A configurada.
+- [ ] Corte "Battery empty" con la batería real por debajo de 3,43 V.
+- [ ] Medir el consumo apagado con el PM1 (se esperan unos 32 µA).
+- [ ] Portada para M5Burner (`m5burner/cover.png`) y primera publicación.
 - [ ] Ghosting con la matriz de grises de la PaperS3.

@@ -3,7 +3,9 @@
 #ifdef BOARD_TRMNL_X_PAPERDIY
 
 #include <Arduino.h>
+#include <Preferences.h>
 #include <Wire.h>
+#include <esp_partition.h>
 #include <driver/rtc_io.h>
 #include <esp_sleep.h>
 #include <trmnl_log.h>
@@ -19,11 +21,14 @@ constexpr int PM1_SDA = 41;
 constexpr int PM1_SCL = 42;
 constexpr uint32_t PM1_I2C_HZ = 100000;
 
+constexpr uint8_t REG_SW_REV = 0x03;     // PM1 firmware revision
 constexpr uint8_t REG_PWR_SRC = 0x04;    // bitmap: [0] 5VIN, [1] 5VINOUT, [2] battery
+constexpr uint8_t REG_WAKE_SRC = 0x05;   // why the PM1 powered the board on; write 0 to clear
 constexpr uint8_t REG_PWR_CFG = 0x06;    // clears on PM1 reset/shutdown
 constexpr uint8_t REG_BATT_LVP = 0x08;   // 2000 + n * 7.81 mV
 constexpr uint8_t REG_I2C_CFG = 0x09;    // [3:0] idle-sleep timeout, 0 = never
 constexpr uint8_t REG_WDT_CNT = 0x0A;    // 0 = PM1 watchdog off
+constexpr uint8_t REG_SYS_CMD = 0x0C;    // 0xA0 key | command
 constexpr uint8_t REG_GPIO_MODE = 0x10;  // 1 = output
 constexpr uint8_t REG_GPIO_OUT = 0x11;
 constexpr uint8_t REG_GPIO_IN = 0x12;
@@ -31,7 +36,17 @@ constexpr uint8_t REG_GPIO_DRV = 0x13;   // 0 = push-pull
 constexpr uint8_t REG_GPIO_PULL0 = 0x14; // 2 bits per pin, 01 = pull-up
 constexpr uint8_t REG_GPIO_FUNC0 = 0x16; // 2 bits per pin, 00 = plain GPIO
 constexpr uint8_t REG_VBAT_L = 0x22;     // battery millivolts, 16-bit little endian
+constexpr uint8_t REG_VIN_L = 0x24;      // USB input millivolts, 16-bit little endian
+constexpr uint8_t REG_TIM_CNT0 = 0x38;   // 31-bit timer in seconds, little endian (0x38-0x3B)
+constexpr uint8_t REG_TIM_CFG = 0x3C;    // [3] start, [2:0] action on expiry
+constexpr uint8_t REG_TIM_KEY = 0x3D;    // 0xA5 loads the timer
 constexpr uint8_t REG_NEO_CFG = 0x50;    // 0 = PM1 NeoPixel engine off
+
+constexpr uint8_t SYS_CMD_SHUTDOWN = 0xA0 | 0x01;
+constexpr uint8_t TIM_START = 1 << 3;
+constexpr uint8_t TIM_ACTION_POWER_ON = 0x03;
+constexpr uint8_t TIM_RELOAD_KEY = 0xA5;
+constexpr uint32_t TIM_MAX_SECONDS = 0x7FFFFFFF / 10; // M5PM1 library limit (~6.8 years)
 
 constexpr uint8_t CHG_EN = 1 << 0;
 constexpr uint8_t DCDC_EN = 1 << 1;
@@ -41,11 +56,17 @@ constexpr uint8_t LED_R_EN = 1 << 4;
 
 constexpr uint8_t PWR_SRC_5VIN = 1 << 0;
 constexpr uint8_t PWR_SRC_5VINOUT = 1 << 1;
+constexpr uint8_t PWR_SRC_BATTERY = 1 << 2;
 
 constexpr uint8_t PM1_GPIO2 = 1 << 2; // EPD rail enable
 constexpr uint8_t PM1_GPIO3 = 1 << 3; // CHG_STAT, active low
 
-constexpr uint16_t BATTERY_LVP_MV = 3400;
+// Hardware low-voltage cut-off. At 3.4 V the PM1 cut the power during the first
+// fast refresh with the battery resting at 4.17 V, every time (the board then
+// stayed off until a long press of the power button). Lowering only this value
+// fixed it, so the PM1 apparently acts on the VBAT sag under the refresh load.
+// 3.0 V only catches a really empty cell; the cell's own protection sits lower.
+constexpr uint16_t BATTERY_LVP_MV = 3000;
 
 constexpr gpio_num_t BUTTON_A = GPIO_NUM_4; // TRMNL button, active low
 
@@ -162,6 +183,101 @@ ChargingStatus chargingStatus() {
   uint8_t gpio = 0;
   if (!readReg(REG_GPIO_IN, &gpio)) return ChargingStatus::UNKNOWN;
   return (gpio & PM1_GPIO3) == 0 ? ChargingStatus::CHARGING : ChargingStatus::NOT_CHARGING;
+}
+
+uint8_t pm1WakeSource() {
+  static bool read = false;
+  static uint8_t source = 0;
+  if (read) return source;
+  read = true;
+  begin();
+  if (!readReg(REG_WAKE_SRC, &source)) {
+    Log_error("PaperDIY: wake source read failed");
+    source = 0;
+  }
+  source &= 0x7F;
+  // Clear it, and stop a timer left armed by the last power-off
+  writeReg(REG_WAKE_SRC, 0x00);
+  writeReg(REG_TIM_CFG, 0x00);
+  writeReg(REG_TIM_KEY, TIM_RELOAD_KEY);
+  Log_info("PaperDIY: PM1 wake source 0x%02X", source);
+  return source;
+}
+
+bool onBattery() {
+  begin();
+  uint8_t sources = 0;
+  if (!readReg(REG_PWR_SRC, &sources)) return false; // unknown: keep the safe deep-sleep path
+  return (sources & (PWR_SRC_5VIN | PWR_SRC_5VINOUT)) == 0 && (sources & PWR_SRC_BATTERY);
+}
+
+bool powerOffFor(uint32_t seconds) {
+  begin();
+  setEpdRail(false);
+  if (seconds > TIM_MAX_SECONDS) seconds = TIM_MAX_SECONDS;
+  bool ok = true;
+  if (seconds > 0) {
+    const uint8_t count[4] = {static_cast<uint8_t>(seconds), static_cast<uint8_t>(seconds >> 8),
+                              static_cast<uint8_t>(seconds >> 16), static_cast<uint8_t>((seconds >> 24) & 0x7F)};
+    for (uint8_t i = 0; i < 4 && ok; ++i) ok = writeReg(REG_TIM_CNT0 + i, count[i]);
+    ok = ok && writeReg(REG_TIM_CFG, TIM_START | TIM_ACTION_POWER_ON);
+    ok = ok && writeReg(REG_TIM_KEY, TIM_RELOAD_KEY);
+    if (!ok) {
+      Log_error("PaperDIY: PM1 timer not armed, staying in deep sleep");
+      return false;
+    }
+  }
+  Log_info("PaperDIY: PM1 power-off, back on in %lu s", static_cast<unsigned long>(seconds));
+  Serial.flush();
+  delay(120); // M5Stack's driver waits this long before a system command
+  writeReg(REG_SYS_CMD, SYS_CMD_SHUTDOWN);
+  delay(1000);
+  // Still running: the PM1 kept the power on (USB plugged in meanwhile?)
+  Log_error("PaperDIY: PM1 did not power off");
+  writeReg(REG_TIM_CFG, 0x00);
+  writeReg(REG_TIM_KEY, TIM_RELOAD_KEY);
+  return false;
+}
+
+void logPowerState() {
+  begin();
+  uint8_t rev = 0, src = 0, cfg = 0, lvp = 0;
+  uint8_t vin[2] = {0, 0};
+  readReg(REG_SW_REV, &rev);
+  readReg(REG_PWR_SRC, &src);
+  readReg(REG_PWR_CFG, &cfg);
+  readReg(REG_BATT_LVP, &lvp);
+  readBytes(REG_VIN_L, vin, sizeof(vin));
+  Log_info("PaperDIY: PM1 fw 0x%02X, source 0x%02X, PWR_CFG 0x%02X, LVP %u mV, VIN %u mV", rev, src, cfg,
+           2000 + lvp * 781 / 100, static_cast<unsigned>((vin[0] | (vin[1] << 8)) & 0x0FFF));
+}
+
+bool underLauncher() {
+  // M5Launcher keeps its resident app in a partition with the "test" subtype at 0x10000
+  static const bool present =
+    esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_TEST, nullptr) != nullptr;
+  return present;
+}
+
+void logLauncher() {
+  if (!underLauncher()) return;
+  // The same keys Launcher's bootloader reads on every reset
+  Preferences launcher;
+  if (!launcher.begin("launcher", true)) {
+    Log_info("PaperDIY: M5Launcher detected (no settings saved yet)");
+    Log_info("PaperDIY: set Launcher's 'GPIO on boot starts Launcher' to A so wakes skip its screen");
+    return;
+  }
+  const uint8_t ddlb = launcher.getUChar("DDLB", 0);
+  const int32_t key = launcher.getInt("LauncherOnKey", -1);
+  const uint8_t level = launcher.getUChar("LauncherKeyLvl", 0);
+  launcher.end();
+  Log_info("PaperDIY: M5Launcher detected: DDLB=%u LauncherOnKey=%ld LauncherKeyLvl=%u", ddlb,
+           static_cast<long>(key), level);
+  if (key < 0) {
+    // Each PM1 power-on would go through Launcher's boot screen (an extra refresh per wake)
+    Log_info("PaperDIY: set Launcher's 'GPIO on boot starts Launcher' to A so wakes skip its screen");
+  }
 }
 
 void prepareForDeepSleep() {

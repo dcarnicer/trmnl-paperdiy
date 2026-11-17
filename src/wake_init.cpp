@@ -19,6 +19,13 @@
 
 #include "messages.h"
 
+#ifdef BOARD_TRMNL_X_PAPERDIY
+#include <paperdiy_battery.h>
+#include <paperdiy_board.h>
+#include <paperdiy_sleep_state.h>
+#include <status_screens.h>
+#endif
+
 #ifdef BOARD_TRMNL_X
 #include <Wire.h>
 
@@ -88,6 +95,12 @@ void initPeripherals(void) {
 
 WakeContext readWakeContext(void) {
   wakeup_reason = esp_sleep_get_wakeup_cause();
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  // After a PM1 power-off the board cold-boots; the PM1 knows its timer turned it on
+  if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED && (paperdiy::pm1WakeSource() & paperdiy::WAKE_TIMER)) {
+    wakeup_reason = ESP_SLEEP_WAKEUP_TIMER;
+  }
+#endif
   bool should_show_error_now =
     (wakeup_reason != ESP_SLEEP_WAKEUP_TIMER); // don't immediately show errors on timer wakeup
   bool gpio_wakeup = (wakeup_reason == ESP_SLEEP_WAKEUP_GPIO || wakeup_reason == ESP_SLEEP_WAKEUP_EXT0 ||
@@ -101,6 +114,11 @@ void openPreferences(void) {
   bool res = preferences.begin("data", false);
   if (res) {
     Log_info("preferences init success (%d free entries)", preferences.freeEntries());
+#ifdef BOARD_TRMNL_X_PAPERDIY
+    paperdiy_sleep_state::restore();
+    paperdiy::logPowerState();
+    paperdiy::logLauncher();
+#endif
   } else {
     Log_fatal("preferences init failed");
     ESP.restart();
@@ -135,6 +153,17 @@ void startBoardHardware(const WakeContext &wake, uint32_t init_time) {
 
   // Mount SPIFFS
   filesystem_init();
+
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  // The PM1's hardware cut-off sits at 3.0 V (its 3.4 V setting tripped on refresh
+  // sags), so stop here at the curve's 0 % instead, and stay off until charged
+  if (paperdiy_battery::isEmpty(battery_voltage)) {
+    Log_error("PaperDIY: battery empty (%.2f V), powering off", battery_voltage);
+    showMessageWithLogo(BATTERY_EMPTY);
+    display_sleep();
+    goToSleepButtonOnly(); // on battery: PM1 power-off with no timer
+  }
+#endif
 }
 #else // BOARD_TRMNL_X
 void startBoardHardware(const WakeContext &wake, uint32_t init_time) {

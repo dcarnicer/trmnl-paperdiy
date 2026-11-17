@@ -23,4 +23,6 @@ namespace DisplayedImage {
   bool matches(const char *filename) { return !covered && strcmp(szPrevFile, filename) == 0; }
 
   char *get() { return szPrevFile; }
+
+  bool isCovered() { return covered; }
 } // namespace DisplayedImage
