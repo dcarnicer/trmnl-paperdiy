@@ -3,7 +3,9 @@ name: build
 on:
   push:
     branches: ["main"]
-    tags: ["**"]
+    # PaperDIY port tags are built by release-paperdiy.yml. The fork carries no TRMNL release tags,
+    # which the TRMNL X integration job needs to fetch the previous release.
+    tags: ["**", "!paperdiy-v*"]
   pull_request:
   workflow_dispatch:
 

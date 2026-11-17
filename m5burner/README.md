@@ -34,6 +34,11 @@ With your own M5Stack account, either:
 2. **M5Stack-Firmware PR**: add this repository to `firmware-repo.list` in a
    fork of `m5stack/M5Stack-Firmware`, with `m5burner.json` and `firmware/`.
 
-Confirm the exact device name M5Burner shows before publishing, and update
-`firmware_category.device` in `m5burner.json` if it differs. A cover image is
-still to do (`m5burner/cover.png`).
+The web uploader (burner.m5stack.com/developer/firmware/upload) lists the
+device as `PaperDIY`. The cover is `m5burner/cover.png` (1280x720), rendered
+from `cover.html` with the command in its header; its dashboards use made-up
+data. Upload the CI-built `trmnl-paperdiy-latest.bin` from the GitHub release,
+never a local build.
+
+Published 2026-11-17 as "TRMNL for PaperDIY (community port)" 1.8.20-1,
+categories IoT & Automation and Display & Art, public (pending M5Stack review).
