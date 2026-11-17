@@ -16,12 +16,12 @@ que cambia es el PMIC M5PM1.
 | Botón TRMNL | Ninguno | A (GPIO4). Despierta del deep sleep (con USB); con batería, el que despierta es el de encendido |
 | Alimentación | — | `CHG_EN` y DCDC de 5 V activados en cada arranque; corte por batería baja (LVP del PM1) a 3,0 V |
 | Sueño | Deep sleep del ESP32 | Con batería, apagado completo por el PM1 y encendido con su temporizador; con USB, deep sleep |
-| OTA | El servidor la ofrece | Desactivada (`DISABLE_FIRMWARE_UPDATE`) |
+| OTA | El servidor la ofrece | Desde las releases de GitHub del port, solo sin Launcher; la del servidor se ignora |
 | Modelo enviado | `m5_papers3` | `Model: m5_papers3` (`API_DEVICE_MODEL`) y `Model-Id: m5_paper_s3` (`API_DEVICE_MODEL_ID`); en la lista interna es `m5_paperdiy` |
 
-La OTA está desactivada porque el servidor, al ver el modelo de la PaperS3,
-mandaría el firmware de la PaperS3, y porque con M5Launcher una escritura OTA
-puede machacar otra app instalada. Para actualizar, instala una imagen nueva.
+La OTA del servidor se ignora (`DISABLE_FIRMWARE_UPDATE`): al ver el modelo
+de la PaperS3, mandaría el firmware de la PaperS3. En su lugar el firmware se
+actualiza desde las releases de GitHub del port (ver [OTA](#ota)).
 
 El código propio de la placa está en `include/paperdiy_board.h`,
 `src/paperdiy_board.cpp` y `src/paperdiy_sleep_state.cpp`. Los cambios en el
@@ -88,6 +88,41 @@ y escribe en el log su configuración (`DDLB`, `LauncherOnKey`,
 avisa: cada encendido del PM1 pasaría antes por la pantalla de Launcher.
 Configura en Launcher `GPIO on boot starts Launcher` = **A**.
 
+### OTA
+
+`src/paperdiy_ota.cpp`. Tras pintar la pantalla, como mucho una vez al día,
+lee `latest.json` de la última release de GitHub
+(`releases/latest/download/latest.json`). Si su `version` (`X.Y.Z-N`) es
+mayor que la propia, descarga `app_url` en el otro hueco con el
+`FirmwareUpdateService` de TRMNL y reinicia. Las versiones `-rc` son
+prereleases y GitHub no las da como `latest`.
+
+- **Solo sin Launcher.** Bajo Launcher la app vive en un hueco del tamaño
+  justo y no hay otro libre; se actualiza desde el catálogo de Launcher.
+- **Dos huecos de 3 MB** (`boards/paperdiy_partitions.csv`, desde la
+  1.8.20-2). Con la tabla de la 1.8.20-1, de un solo hueco, no se actualiza:
+  hay que grabar una vez la imagen completa.
+- **Batería:** solo con USB o con la batería al 50 % o más.
+- **Vuelta atrás:** el bootloader se compila con
+  `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`. La imagen nueva solo se confirma
+  (`esp_ota_mark_app_valid_cancel_rollback`) al llegar al sueño; si se cuelga
+  o se reinicia antes, el bootloader vuelve a la anterior. Esta anota la
+  versión fallida en NVS (`pd_ota_skip`) y no la vuelve a instalar. En la
+  PaperDIY se salta el `esp_ota_mark_app_valid_cancel_rollback()` que
+  `setup()` hace al arrancar en las placas que no son la TRMNL X.
+- **Seguridad:** HTTPS sin comprobar el certificado (`setInsecure`, como el
+  resto del firmware). El ESP32 comprueba el hash de la imagen al terminar,
+  así que una descarga corrupta no se instala, pero no hay firma.
+- Las variantes `_dev` no se actualizan solas. Para probar, compila con
+  `-DPAPERDIY_OTA_IN_DEV -DPAPERDIY_OTA_ALLOW_HTTP`,
+  `-DPAPERDIY_OTA_MANIFEST_URL=\"http://…/latest.json\"`,
+  `-DPAPERDIY_OTA_CHECK_INTERVAL_S=60` y, para una versión que se cuelgue,
+  `-DPAPERDIY_OTA_TEST_CRASH`.
+
+`scripts/extra/paperdiy_sdkconfig_path.py` hace absoluta la ruta del
+`sdkconfig`: con la relativa, pioarduino compilaba el bootloader con los
+valores por defecto de ESP-IDF y sin vuelta atrás.
+
 ## Compilar
 
 ```bash
@@ -142,6 +177,11 @@ esptool.py --chip esp32s3 --port /dev/cu.usbmodemXXXX write_flash 0x0 .pio/build
 
 Esto borra lo que hubiera instalado. Antes, haz una copia del firmware actual.
 
+Al pasar de la 1.8.20-1 (o de Launcher) a la tabla de dos huecos, la partición
+de datos cambia de sitio: las redes Wi-Fi se pierden y hay que volver a
+configurarlas en el portal. Viniendo de Launcher también se pierde la API key;
+en LaraPaper, abre Auto-Join para que `/api/setup` la vuelva a entregar.
+
 ## Releases
 
 Al subir un tag `paperdiy-vX.Y.Z-N` (X.Y.Z = versión de `include/config.h`,
@@ -151,7 +191,8 @@ N = revisión del port), `.github/workflows/release-paperdiy.yml` compila
 | Archivo | Uso |
 |---|---|
 | `trmnl-paperdiy-latest.bin` | Imagen completa (0x0) para M5Burner, esptool o M5Launcher |
-| `trmnl-paperdiy-<versión>-app.bin` | Solo la app, para actualizar bajo Launcher con esptool en el offset de su partición |
+| `trmnl-paperdiy-<versión>-app.bin` | Solo la app: la que descarga la OTA, y para actualizar bajo Launcher con esptool en el offset de su partición |
+| `latest.json` | Manifiesto de la OTA: `version`, `app_url` (la app de ese tag), `app_size`, `app_sha256` |
 
 `scripts/paperdiy/check_release_assets.py` comprueba que la app de las dos
 imágenes es la misma y avisa si deja de caber en la partición de 1472 KB de
@@ -221,11 +262,23 @@ CrossPoint):
       `Update-Source: timer`, `Wake-Time` recuperado de NVS). Con USB, deep
       sleep.
 
+Probado el 17/11/2026 sin Launcher, con la variante `_dev` y versiones de
+prueba servidas desde la red local:
+
+- [x] Actualización 1.8.20-2 → 1.8.20-3: descarga, reinicio y `now running`.
+      En la siguiente comprobación no vuelve a descargar.
+- [x] Vuelta atrás: la 1.8.20-5 (`PAPERDIY_OTA_TEST_CRASH`) se cuelga en su
+      primer arranque, el bootloader vuelve a la 1.8.20-3 y esta anota la 5
+      como fallida.
+
 Pendiente:
 
 - [x] `Percent-Charged` con USB (carga terminada: 100 %) y detección de
       Launcher con la tecla A configurada.
 - [ ] Corte "Battery empty" con la batería real por debajo de 3,43 V.
 - [ ] Medir el consumo apagado con el PM1 (se esperan unos 32 µA).
-- [ ] Portada para M5Burner (`m5burner/cover.png`) y primera publicación.
+- [x] Portada para M5Burner (`m5burner/cover.png`) y primera publicación
+      (1.8.20-1, pendiente de revisión).
+- [ ] OTA real contra las releases de GitHub (HTTPS y redirección), con la
+      primera release que publique `latest.json`.
 - [ ] Ghosting con la matriz de grises de la PaperS3.

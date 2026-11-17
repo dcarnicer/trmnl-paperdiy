@@ -49,6 +49,19 @@ jobs:
           cp .pio/build/TRMNL_X_PAPERDIY/firmware.bin "dist/${app}"
           python3 scripts/paperdiy/check_release_assets.py "dist/${full}" "dist/${app}"
           (cd dist && sha256sum *.bin > SHA256SUMS.txt)
+          # What standalone boards read once a day to update themselves (src/paperdiy_ota.cpp),
+          # from releases/latest: release candidates (prereleases) are never offered
+          app_sha=$(sha256sum "dist/${app}" | cut -d' ' -f1)
+          app_size=$(stat -c %s "dist/${app}")
+          cat > dist/latest.json <<JSON
+          {
+            "version": "${version}",
+            "app_url": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${app}",
+            "app_size": ${app_size},
+            "app_sha256": "${app_sha}"
+          }
+          JSON
+          python3 -m json.tool dist/latest.json
           cat > dist/RELEASE_NOTES.md <<NOTES
           TRMNL firmware for the M5Stack PaperDIY (community port) ${version}: TRMNL firmware ${version%%-*}, port revision ${version#*-}.
 
@@ -57,7 +70,7 @@ jobs:
           | \`${full}\` | **Full image (0x0).** Install with M5Burner or esptool, or from M5Launcher (SD, WebUI, Favorites). Always-latest link: \`https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/${full}\` |
           | \`${app}\` | App only. Under M5Launcher, write it at the offset of this app's partition with esptool to update without the SD (see docs/paperdiy.md). Never at 0x10000 with Launcher installed. |
 
-          The firmware does not update itself (OTA is disabled on this board). See [docs/paperdiy.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/paperdiy.md).
+          Installed standalone (full image, 1.8.20-2 or later), the firmware updates itself from \`latest.json\` once a day, on USB or with the battery at 50 % or more. Under M5Launcher it does not: update it from Launcher. Coming from 1.8.20-1 or from Launcher, install the full image once and set up Wi-Fi again in the portal: the data partition moved. See [docs/paperdiy.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/paperdiy.md).
           NOTES
 
       - name: Publish release
@@ -66,6 +79,7 @@ jobs:
           files: |
             dist/*.bin
             dist/SHA256SUMS.txt
+            dist/latest.json
           body_path: dist/RELEASE_NOTES.md
           prerelease: ${{ contains(github.ref_name, '-rc.') }}
           fail_on_unmatched_files: true

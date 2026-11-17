@@ -1,9 +1,11 @@
-# M5Stack PaperDIY (16 MB). One app slot: firmware updates are disabled on this
-# board, and under M5Launcher the table is Launcher's anyway (it only reads the
-# app and the data partitions from here). Launcher gives an empty "spiffs" a
-# 448 KB partition; standalone it gets 1 MB.
+# M5Stack PaperDIY (16 MB). Two 3 MB app slots for updates from the port's
+# GitHub releases (src/paperdiy_ota.cpp). Under M5Launcher the table is
+# Launcher's anyway: it copies the app and the data partitions from here into
+# slots it sizes itself, and updates go through Launcher. Launcher gives an
+# empty "spiffs" a 448 KB partition; standalone it gets 1 MB.
 # Name,   Type, SubType, Offset,   Size
 nvs,      data, nvs,     0x9000,   0x5000
 otadata,  data, ota,     0xE000,   0x2000
-app0,     app,  ota_0,   0x10000,  0x400000
-spiffs,   data, spiffs,  0x410000, 0x100000
+app0,     app,  ota_0,   0x10000,  0x300000
+app1,     app,  ota_1,   0x310000, 0x300000
+spiffs,   data, spiffs,  0x610000, 0x100000

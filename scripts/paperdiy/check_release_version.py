@@ -3,7 +3,8 @@
 
 PaperDIY releases are versioned <TRMNL firmware X.Y.Z>-<N>, N being the port
 revision: tag paperdiy-vX.Y.Z-N (or paperdiy-vX.Y.Z-N-rc.M). X.Y.Z must match
-FW_MAJOR/MINOR/PATCH_VERSION in include/config.h. Adapted from
+FW_MAJOR/MINOR/PATCH_VERSION in include/config.h and N PAPERDIY_PORT_REVISION in
+include/paperdiy_ota.h (the version the firmware compares in its updates). Adapted from
 dcarnicer/paperdiy-reader.
 
 Usage:
@@ -31,6 +32,14 @@ def firmware_version() -> str:
     return ".".join(parts)
 
 
+def port_revision() -> str:
+    text = (PROJECT_DIR / "include" / "paperdiy_ota.h").read_text(encoding="utf-8")
+    match = re.search(r"^#define PAPERDIY_PORT_REVISION\s+(\d+)\s*$", text, re.MULTILINE)
+    if not match:
+        raise SystemExit("missing PAPERDIY_PORT_REVISION in include/paperdiy_ota.h")
+    return match.group(1)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("tag", nargs="?", default=os.environ.get("GITHUB_REF_NAME", ""))
@@ -42,6 +51,9 @@ def main() -> int:
     fw = firmware_version()
     if match.group("fw") != fw:
         raise SystemExit(f"tag {args.tag} is for firmware {match.group('fw')}, include/config.h says {fw}")
+    rev = port_revision()
+    if match.group("rev") != rev:
+        raise SystemExit(f"tag {args.tag} is port revision {match.group('rev')}, include/paperdiy_ota.h says {rev}")
     print(f"release tag OK: {args.tag} (firmware {fw}, port revision {match.group('rev')})")
     return 0
 

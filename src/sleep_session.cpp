@@ -22,6 +22,7 @@
 
 #ifdef BOARD_TRMNL_X_PAPERDIY
 #include <paperdiy_board.h>
+#include <paperdiy_ota.h>
 #include <paperdiy_sleep_state.h>
 #endif
 
@@ -102,6 +103,7 @@ static void enterSleep(bool keep_timer) {
   if (!keep_timer) preferences.putUInt(PREFERENCES_LAST_SLEEP_TIME, systemClock().getTime());
 #ifdef BOARD_TRMNL_X_PAPERDIY
   // On battery, switch the whole board off and let the PM1 timer turn it back on
+  paperdiy_ota::confirmRunningImage(); // reached sleep: a new image is good
   const bool pm1_power_off = paperdiy::onBattery();
   if (pm1_power_off) paperdiy_sleep_state::save();
 #endif
@@ -177,6 +179,7 @@ void goToSleepButtonOnly(void) {
   WiFi.mode(WIFI_OFF);
   filesystem_deinit();
 #ifdef BOARD_TRMNL_X_PAPERDIY
+  paperdiy_ota::confirmRunningImage(); // reached sleep: a new image is good
   const bool pm1_power_off = paperdiy::onBattery();
   if (pm1_power_off) paperdiy_sleep_state::save();
 #endif

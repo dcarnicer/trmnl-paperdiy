@@ -117,6 +117,9 @@ bool FirmwareUpdateService::performFirmwareUpdate() {
       return false;
     }
 
+#ifdef BOARD_TRMNL_X_PAPERDIY
+    https->setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // GitHub release assets redirect
+#endif
     int httpCode = https->GET();
     if (httpCode == HTTP_CODE_OK) {
       Log_info("%s [%d]: Downloading .bin file...\r\n", __FILE__, __LINE__);

@@ -22,6 +22,7 @@
 #ifdef BOARD_TRMNL_X_PAPERDIY
 #include <paperdiy_battery.h>
 #include <paperdiy_board.h>
+#include <paperdiy_ota.h>
 #include <paperdiy_sleep_state.h>
 #include <status_screens.h>
 #endif
@@ -118,6 +119,7 @@ void openPreferences(void) {
     paperdiy_sleep_state::restore();
     paperdiy::logPowerState();
     paperdiy::logLauncher();
+    paperdiy_ota::noteUpdateOutcome();
 #endif
   } else {
     Log_fatal("preferences init failed");

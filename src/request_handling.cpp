@@ -10,6 +10,9 @@
 #include <status_screens.h>
 #include <touch_i2c_lock.h>
 #include <trmnl_log.h>
+#ifdef BOARD_TRMNL_X_PAPERDIY
+#include <paperdiy_ota.h>
+#endif
 
 void showImageTooBigIfNeeded(https_request_err_e request_result) {
   if (request_result == HTTPS_IMAGE_FILE_TOO_BIG) {
@@ -68,7 +71,19 @@ void resetIfRequested(https_request_err_e request_result) {
 }
 
 void updateFirmwareIfDue(void) {
-#ifdef DISABLE_FIRMWARE_UPDATE
+#ifdef BOARD_TRMNL_X_PAPERDIY
+  // The server's offer is for the PaperS3 this board reports itself as; updates come
+  // from the port's GitHub releases instead
+  if (apiDisplayResult.response.update_firmware) {
+    Log.info("%s [%d]: server firmware update ignored on the PaperDIY\r\n", __FILE__, __LINE__);
+  }
+#if defined(DEV_FIRMWARE) && !defined(PAPERDIY_OTA_IN_DEV)
+  Log.info("%s [%d]: dev build: no automatic updates\r\n", __FILE__, __LINE__);
+#else
+  paperdiy_ota::updateIfDue();
+#endif
+  return;
+#elif defined(DISABLE_FIRMWARE_UPDATE)
   // The server would offer another board's firmware (e.g. the PaperS3 build to a PaperDIY
   // reporting that model), and under M5Launcher an OTA write can overwrite another app
   if (apiDisplayResult.response.update_firmware) {

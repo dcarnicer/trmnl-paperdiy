@@ -73,7 +73,9 @@ void setup() {
   if (!testPassed) {
     startQA();
   }
+#ifndef BOARD_TRMNL_X_PAPERDIY
   esp_ota_mark_app_valid_cancel_rollback();
+#endif // the PaperDIY confirms a new image once it reaches sleep (paperdiy_ota)
   bl_init();
 }
 #endif // !BOARD_TRMNL_X
