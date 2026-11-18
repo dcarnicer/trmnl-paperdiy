@@ -109,10 +109,12 @@ namespace {
     if (busStarted) return;
     Wire.begin(PM1_SDA, PM1_SCL, PM1_I2C_HZ);
     Wire.setTimeOut(4);
+    // Keep the PM1 on the bus between transactions and its watchdog off. The
+    // PM1 is a PY32 running an I2C-slave firmware, not a register file, and can
+    // NAK while it boots: only mark the bus up once it answers, so the next PM1
+    // call retries the whole bring-up (as the reader's M5Pm1 does).
+    if (!writeReg(REG_I2C_CFG, 0x00) || !writeReg(REG_WDT_CNT, 0x00)) return;
     busStarted = true;
-    // Keep the PM1 on the bus between transactions and its watchdog off.
-    writeReg(REG_I2C_CFG, 0x00);
-    writeReg(REG_WDT_CNT, 0x00);
   }
 
 } // namespace
@@ -252,7 +254,7 @@ namespace paperdiy {
     readReg(REG_BATT_LVP, &lvp);
     readBytes(REG_VIN_L, vin, sizeof(vin));
     Log_info("PaperDIY: PM1 fw 0x%02X, source 0x%02X, PWR_CFG 0x%02X, LVP %u mV, VIN %u mV", rev, src, cfg,
-             2000 + lvp * 781 / 100, static_cast<unsigned>((vin[0] | (vin[1] << 8)) & 0x0FFF));
+             2000 + lvp * 781 / 100, static_cast<unsigned>(vin[0] | (vin[1] << 8)));
   }
 
   bool underLauncher() {

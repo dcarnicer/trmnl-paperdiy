@@ -133,6 +133,11 @@ Genera `.pio/build/TRMNL_X_PAPERDIY/trmnl-paperdiy-factory.bin`: bootloader,
 tabla de particiones (`boards/paperdiy_partitions.csv`) y app, para grabar en
 `0x0`.
 
+La variante `_dev` añade `-D DEV_FIRMWARE=1` y `-D DO_NOT_LIGHT_SLEEP=1`: las
+pantallas de mensaje hacen un light sleep de 1 s que corta el CDC por USB, y
+sin ese flag el log serie se queda mudo hasta el siguiente arranque. El build
+de release mantiene el light sleep.
+
 ## Instalar
 
 ### Con M5Launcher (junto al lector)
@@ -292,7 +297,14 @@ Probado el 18/11/2026 tras integrar upstream (Captive Portal 2.1, TRMNL
 - [x] Compila (`TRMNL_X_PAPERDIY`), pasan los tests nativos y `pio check`.
 - [x] La app mide 1.464.640 bytes (1430 KB) con `build_type = release`: cabe en
       los 1472 KB de Launcher, con unos 42 KB de margen.
-- [ ] Portal 2.1 en la placa: redes guardadas, Advanced Settings y Done.
+- [x] Portal 2.1 en la placa: Wi-Fi, red guardada, **Advanced Settings >
+      Server** y **Done**. Al salir, `/api/setup` contra LaraPaper (200, API
+      key y friendly ID) y `/api/display` (200, PNG de 960×540 a 4 bpp,
+      refresco de 900 s); la imagen se pinta y el equipo se duerme.
+- [x] PM1 en hardware: fw `0x54`, `PWR_CFG 0x03`, LVP 2999 mV, VIN 5096 mV,
+      batería 4166 mV; `Percent-Charged: 100`, `Battery-Charging: 0` y
+      `USB-Connected: true` con el cargador terminado. El VIN se enmascaraba a
+      12 bits en el log (`978 mV` en vez de `5096`); corregido.
 - [ ] Un ciclo de despertar y dormir con batería con el portal nuevo.
 
 Pendiente:
