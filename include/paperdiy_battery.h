@@ -15,17 +15,17 @@
 
 namespace paperdiy_battery {
 
-/// @brief Percentage to report for @p volts, measured at wake before the display
-///        and Wi-Fi draw current. On USB it holds the last on-battery value while
-///        charging and reports 100 once the charger is done; on battery it applies
-///        the curve with a small hysteresis and remembers the result in NVS.
-/// @return 0-100, or -1 if the voltage read had failed
-int reportPercent(float volts);
+  /// @brief Percentage to report for @p volts, measured at wake before the display
+  ///        and Wi-Fi draw current. On USB it holds the last on-battery value while
+  ///        charging and reports 100 once the charger is done; on battery it applies
+  ///        the curve with a small hysteresis and remembers the result in NVS.
+  /// @return 0-100, or -1 if the voltage read had failed
+  int reportPercent(float volts);
 
-/// @brief True when the board runs on battery and @p volts is below the cut-off
-///        (the curve's 0 %, ~3.43 V for the 1500 mAh cell). The PM1's own
-///        hardware cut-off sits lower, at 3.0 V; see paperdiy_board.cpp.
-bool isEmpty(float volts);
+  /// @brief True when the board runs on battery and @p volts is below the cut-off
+  ///        (the curve's 0 %, ~3.43 V for the 1500 mAh cell). The PM1's own
+  ///        hardware cut-off sits lower, at 3.0 V; see paperdiy_board.cpp.
+  bool isEmpty(float volts);
 
 } // namespace paperdiy_battery
 

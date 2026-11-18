@@ -153,8 +153,15 @@ Launcher crea una partición `spiffs` de 448 KB para esta app porque la
 imagen la declara vacía. TRMNL guarda ahí la imagen actual, la anterior y el
 logo; con dashboards normales cabe.
 
-La partición de la app que crea Launcher es de 1472 KB y el firmware ocupa
-unos 1417 KB: queda poco margen si crece.
+La partición de la app que crea Launcher es de 1472 KB. Con el Captive Portal
+2.1 el firmware ocupa unos 1430 KB: quedan unos 42 KB. `check_release_assets.py`
+falla si la app no cabe (y avisa cuando queda menos de 32 KB); para publicar
+igualmente, por ejemplo solo para instalaciones sin Launcher, pásale
+`--allow-launcher-oversize`.
+
+El entorno compila con `build_type = release` (el resto de la base usa
+`debug`): con `debug` la app son unos 24 KB más y el margen de Launcher baja a
+18 KB. Para depurar, `pio debug` sigue generando una compilación de depuración.
 
 Para actualizar solo TRMNL sin pasar por la SD, lee primero la tabla de
 particiones y graba `firmware.bin` en el offset de la app de TRMNL (en nuestra
@@ -195,19 +202,26 @@ N = revisión del port), `.github/workflows/release-paperdiy.yml` compila
 | `latest.json` | Manifiesto de la OTA: `version`, `app_url` (la app de ese tag), `app_size`, `app_sha256` |
 
 `scripts/paperdiy/check_release_assets.py` comprueba que la app de las dos
-imágenes es la misma y avisa si deja de caber en la partición de 1472 KB de
-Launcher. Para publicar en M5Burner (y así en el catálogo de Launcher), ver
+imágenes es la misma, que quepa en la partición de 1472 KB de Launcher (falla
+si no, y avisa cuando quedan menos de 32 KB) y que la imagen completa lleve
+bootloader y tabla al principio. El workflow de release también pasa los tests
+nativos (`pio test -e native`) antes de publicar; `.github/workflows/paperdiy.yml`
+hace la compilación y esas comprobaciones en cada push a la rama `paperdiy`. Para
+publicar en M5Burner (y así en el catálogo de Launcher), ver
 `m5burner/README.md`.
 
 ## Primer arranque
 
-1. El dispositivo abre el punto de acceso **TRMNL**. Conéctate y elige tu red
-   Wi-Fi.
-2. Servidor:
+1. El dispositivo abre el punto de acceso **TRMNL**. Conéctate: el portal
+   (Captive Portal 2.1) tiene una entrada **Wi-Fi** con las redes guardadas
+   (hasta cinco) y **Select a Network** para añadir una. **Save and Connect**
+   guarda la red solo cuando el dispositivo ha llegado a conectarse; si falla,
+   vuelve al portal con el motivo. **Done** sale y reinicia con una red
+   guardada; sin pulsar nada, a los 15 minutos también sale.
+2. Servidor, en **Advanced Settings > Server**:
    - **Nube de TRMNL:** necesitas una licencia BYOD. Registra el dispositivo
      con su MAC y elige el modelo **M5PaperS3** (960×540).
-   - **Servidor propio (BYOS):** escribe su URL en el campo de URL de la API
-     del portal.
+   - **Servidor propio (BYOS):** escribe su URL en el campo de URL de la API.
 
 ### Con LaraPaper
 
@@ -217,9 +231,10 @@ Launcher. Para publicar en M5Burner (y así en el catálogo de Launcher), ver
 - Sin modelo, LaraPaper sirve el BMP de 800×480 de la TRMNL original, y con
   FastEPD el firmware no dibuja BMP: la pantalla no cambia. Si el dispositivo
   ya existía sin modelo, asígnalo a mano.
-- Guardar el servidor en el portal también guarda la opción de log
-  detallado, desactivada por defecto. A partir de ahí la variante `_dev` deja
-  de escribir por USB. Se vuelve a activar desde el portal.
+- El log detallado por USB es **Advanced Settings > Diagnostics > Serial
+  logs**, desactivado por defecto y guardado al momento. Guardar el servidor
+  ya no lo cambia: la variante `_dev` escribe por USB hasta que se desactive
+  ahí, y se vuelve a activar desde el mismo sitio.
 
 ## Botones
 
@@ -227,7 +242,7 @@ Launcher. Para publicar en M5Burner (y así en el catálogo de Launcher), ver
 |---|---|
 | A, pulsación corta | Despierta y refresca (solo con USB: con batería la placa está apagada) |
 | A, doble pulsación | Función especial asignada en el servidor |
-| A, 5–15 s | Olvida la Wi-Fi |
+| A, 5–15 s | Abre el portal de ajustes (conserva las redes guardadas) |
 | A, más de 15 s | Borra las credenciales del dispositivo |
 | Encendido (PM1), un clic | Enciende o reinicia (refresca) |
 | Encendido (PM1), 2 s | Modo descarga (LED rojo parpadeando) |
@@ -270,6 +285,15 @@ prueba servidas desde la red local:
 - [x] Vuelta atrás: la 1.8.20-5 (`PAPERDIY_OTA_TEST_CRASH`) se cuelga en su
       primer arranque, el bootloader vuelve a la 1.8.20-3 y esta anota la 5
       como fallida.
+
+Probado el 18/11/2026 tras integrar upstream (Captive Portal 2.1, TRMNL
+`45e58db`) y subir la revisión del port a 3:
+
+- [x] Compila (`TRMNL_X_PAPERDIY`), pasan los tests nativos y `pio check`.
+- [x] La app mide 1.464.640 bytes (1430 KB) con `build_type = release`: cabe en
+      los 1472 KB de Launcher, con unos 42 KB de margen.
+- [ ] Portal 2.1 en la placa: redes guardadas, Advanced Settings y Done.
+- [ ] Un ciclo de despertar y dormir con batería con el portal nuevo.
 
 Pendiente:
 

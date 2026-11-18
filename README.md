@@ -7,6 +7,12 @@ created for the [TRMNL](https://trmnl.com) e-ink display.
 >
 > to access production-ready firmware, check out the [tagged releases](https://github.com/usetrmnl/trmnl-firmware/releases/)
  or use the [Flash Assistant](https://trmnl.com/flash).
+
+> [!NOTE]
+> **This fork adds the M5Stack PaperDIY (K159)** as a community port: `pio run -e TRMNL_X_PAPERDIY`.
+> Installation, the M5PM1 sleep behavior and the port's own OTA are in [docs/paperdiy.md](docs/paperdiy.md)
+> (Spanish); releases are at [dcarnicer/trmnl-paperdiy/releases](https://github.com/dcarnicer/trmnl-paperdiy/releases).
+
 ## **Wake cycle**
 
 Each wake the device connects to Wi-Fi, fetches its screen from `/api/display`, draws it, checks for a reset or firmware update and goes back to deep sleep.

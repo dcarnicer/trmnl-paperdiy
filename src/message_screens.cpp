@@ -89,7 +89,9 @@ static void draw_wifi_failed_message(void) {
   bbep.getStringBox(string1, &rect);
   bbep.setCursor((bbep.width() - rect.w) / 2, bbep.height() - (rect.h * 2) - 140);
   bbep.println(string1);
-#ifndef BOARD_TRMNL_X
+#if defined(BOARD_TRMNL_X_PAPERDIY)
+  const char string2[] = "Hold button A for the settings portal, or scan the QR code for help.";
+#elif !defined(BOARD_TRMNL_X)
   const char string2[] = "Hold the button on the back to reset Wi-Fi, or scan the QR code for help.";
 #else
   const char string2[] =
@@ -154,7 +156,10 @@ static void draw_wifi_weak_message(void) {
 static void draw_image_download_failed_message(void) {
   const char string1[] = "API responded, but the image download failed.";
   draw_centered_line(string1, 340);
-#ifndef BOARD_TRMNL_X
+#if defined(BOARD_TRMNL_X_PAPERDIY)
+  const char string2[] = "Press button A";
+  const char string3[] = "to advance to the next screen.";
+#elif !defined(BOARD_TRMNL_X)
   const char string2[] = "Press the button on the back";
   const char string3[] = "to advance to the next screen.";
 #else
@@ -168,7 +173,9 @@ static void draw_image_download_failed_message(void) {
 static void draw_api_unable_to_connect_message(void) {
   const char string1[] = "Wi-Fi connected, but can't reach the API.";
   draw_centered_line(string1, 340);
-#ifndef BOARD_TRMNL_X
+#if defined(BOARD_TRMNL_X_PAPERDIY)
+  const char string2[] = "Press button A to retry,";
+#elif !defined(BOARD_TRMNL_X)
   const char string2[] = "Press the button on the back to retry,";
 #else
   const char string2[] = "Tap the right side of the touch bar to try again,";
@@ -189,7 +196,9 @@ static void draw_api_setup_failed_message(void) {
   bbep.setCursor((bbep.width() - rect.w) / 2, bbep.height() - 140 - (rect.h * 3));
 #endif
   bbep.println(string1);
-#ifndef BOARD_TRMNL_X
+#if defined(BOARD_TRMNL_X_PAPERDIY)
+  const char string2[] = "Press button A to retry,";
+#elif !defined(BOARD_TRMNL_X)
   const char string2[] = "Press the button on the back to retry,";
 #else
   const char string2[] = "Tap the right side of the touch bar to try again,";
@@ -210,7 +219,9 @@ static void draw_api_size_error_message(void) {
   bbep.setCursor((bbep.width() - rect.w) / 2, bbep.height() - 140 - (rect.h * 2));
 #endif
   bbep.println(string1);
-#ifndef BOARD_TRMNL_X
+#if defined(BOARD_TRMNL_X_PAPERDIY)
+  const char string2[] = "Wait, or hold button A for the settings portal.";
+#elif !defined(BOARD_TRMNL_X)
   const char string2[] = "Wait, or hold the button on the back to reset.";
 #else
   const char string2[] = "Wait, or tap the middle of the touch bar for Settings > Wi-Fi & Settings.";
@@ -221,7 +232,9 @@ static void draw_api_size_error_message(void) {
 static void draw_api_firmware_update_error_message(void) {
   const char string1[] = "Wi-Fi connected, but the firmware update download failed.";
   draw_centered_line(string1, 400);
-#ifndef BOARD_TRMNL_X
+#if defined(BOARD_TRMNL_X_PAPERDIY)
+  const char string2[] = "Wait, or hold button A for the settings portal.";
+#elif !defined(BOARD_TRMNL_X)
   const char string2[] = "Wait, or hold the button on the back to reset.";
 #else
   const char string2[] = "Wait, or tap the middle of the touch bar for Settings > Wi-Fi & Settings.";
@@ -245,7 +258,9 @@ static void draw_wifi_image_timeout_message(void) {
 static void draw_api_image_download_error_message(void) {
   const char string1[] = "Wi-Fi connected, but the API couldn't deliver the image.";
   draw_centered_line(string1, 400);
-#ifndef BOARD_TRMNL_X
+#if defined(BOARD_TRMNL_X_PAPERDIY)
+  const char string2[] = "Wait, or hold button A for the settings portal.";
+#elif !defined(BOARD_TRMNL_X)
   const char string2[] = "Wait, or hold the button on the back to reset.";
 #else
   const char string2[] = "Wait, or tap the middle of the touch bar for Settings > Wi-Fi & Settings.";
@@ -369,9 +384,14 @@ static void draw_wifi_retry_limit_message(void) {
   bbep.setCursor((bbep.width() - rect.w) / 2, bbep.height() - 140 - (rect.h * 3));
 #endif
   bbep.println(string1);
+#if defined(BOARD_TRMNL_X_PAPERDIY)
+  const char string2[] = "Press button A to refresh manually.";
+  const char string3[] = "Hold button A for the settings portal.";
+#else
   const char string2[] = "Press the button to refresh manually.";
-  draw_centered_line(string2, -1);
   const char string3[] = "Hold the button to reset Wi-Fi and pick another network.";
+#endif
+  draw_centered_line(string2, -1);
   draw_centered_line(string3, -1);
 }
 

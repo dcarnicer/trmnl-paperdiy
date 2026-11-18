@@ -13,12 +13,12 @@
 
 namespace paperdiy_sleep_state {
 
-/// @brief Saves the RTC state to NVS. Needs the preferences open.
-void save();
+  /// @brief Saves the RTC state to NVS. Needs the preferences open.
+  void save();
 
-/// @brief Restores the RTC state saved by save(), once, and deletes it.
-///        Needs the preferences open. No-op when nothing was saved.
-void restore();
+  /// @brief Restores the RTC state saved by save(), once, and deletes it.
+  ///        Needs the preferences open. No-op when nothing was saved.
+  void restore();
 
 } // namespace paperdiy_sleep_state
 

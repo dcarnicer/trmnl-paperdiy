@@ -39,6 +39,10 @@ jobs:
       - name: Build
         run: pio run -e TRMNL_X_PAPERDIY
 
+      # paperdiy tags skip build.yml, so this is the only build a release gets
+      - name: Native tests
+        run: pio test -e native
+
       - name: Prepare release assets
         run: |
           mkdir -p dist

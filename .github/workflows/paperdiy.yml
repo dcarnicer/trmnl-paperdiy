@@ -1,0 +1,51 @@
+# The M5Stack PaperDIY port: builds it on every push to the paperdiy branch and on
+# its pull requests, with the same image checks as a release. The upstream envs are
+# covered by build.yml; a paperdiy tag is built by release-paperdiy.yml only.
+name: paperdiy
+
+on:
+  push:
+    branches: ["paperdiy"]
+  pull_request:
+    branches: ["paperdiy"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio
+          key: ${{ runner.os }}-pio-paperdiy-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-paperdiy-
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio==6.1.19
+
+      - name: Build
+        run: pio run -e TRMNL_X_PAPERDIY
+
+      # Same checks as a release: factory image layout and the app size against
+      # M5Launcher's slot. Fails if the app no longer fits under Launcher.
+      - name: Check the release images
+        run: |
+          cp .pio/build/TRMNL_X_PAPERDIY/firmware.bin "$RUNNER_TEMP/trmnl-paperdiy-app.bin"
+          python3 scripts/paperdiy/check_release_assets.py \
+            .pio/build/TRMNL_X_PAPERDIY/trmnl-paperdiy-factory.bin \
+            "$RUNNER_TEMP/trmnl-paperdiy-app.bin"
+
+      - name: Native tests
+        run: pio test -e native

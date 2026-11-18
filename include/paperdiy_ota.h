@@ -21,7 +21,9 @@
 
 // Port revision N of release X.Y.Z-N: X.Y.Z is TRMNL's FW_VERSION_STRING.
 // scripts/paperdiy/check_release_version.py checks both against the tag.
-#define PAPERDIY_PORT_REVISION 2
+// Bump it whenever the port's firmware changes, so a release tag is never reused
+// and an installed board sees the update.
+#define PAPERDIY_PORT_REVISION 3
 
 #ifndef PAPERDIY_OTA_MANIFEST_URL
 #define PAPERDIY_OTA_MANIFEST_URL "https://github.com/dcarnicer/trmnl-paperdiy/releases/latest/download/latest.json"
@@ -31,20 +33,20 @@
 
 namespace paperdiy_ota {
 
-/// @brief This build's release version, "X.Y.Z-N".
-String version();
+  /// @brief This build's release version, "X.Y.Z-N".
+  String version();
 
-/// @brief At boot, once preferences are open: if the last update did not come
-///        up (the bootloader rolled it back), remember that version to skip it.
-void noteUpdateOutcome();
+  /// @brief At boot, once preferences are open: if the last update did not come
+  ///        up (the bootloader rolled it back), remember that version to skip it.
+  void noteUpdateOutcome();
 
-/// @brief Before sleeping or powering off: the running image has worked, so
-///        cancel the bootloader's rollback if it was pending verification.
-void confirmRunningImage();
+  /// @brief Before sleeping or powering off: the running image has worked, so
+  ///        cancel the bootloader's rollback if it was pending verification.
+  void confirmRunningImage();
 
-/// @brief After the screen is shown: once a day, check GitHub and install a
-///        newer release. Restarts the board if it installed one.
-void updateIfDue();
+  /// @brief After the screen is shown: once a day, check GitHub and install a
+  ///        newer release. Restarts the board if it installed one.
+  void updateIfDue();
 
 } // namespace paperdiy_ota
 
