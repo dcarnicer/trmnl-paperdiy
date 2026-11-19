@@ -84,9 +84,16 @@ pero pinta con M5GFX; los refrescos rápidos de FastEPD consumen más de golpe.
 
 El firmware detecta Launcher (su partición residente tiene el subtipo `test`)
 y escribe en el log su configuración (`DDLB`, `LauncherOnKey`,
-`LauncherKeyLvl`, del namespace NVS `launcher`). Si no hay tecla configurada,
-avisa: cada encendido del PM1 pasaría antes por la pantalla de Launcher.
-Configura en Launcher `GPIO on boot starts Launcher` = **A**.
+`LauncherKeyLvl`, del namespace NVS `launcher`). Con Launcher 3.0.0, configura:
+
+- `GPIO on boot starts Launcher` = **A** (con `GPIO Level` = `0`): los
+  encendidos del PM1 van directos a TRMNL; Launcher solo aparece si mantienes
+  A al arrancar.
+- `DeepSleep starts Launcher` **desactivado**: con USB, los despertares por
+  temporizador usan deep sleep del ESP32 y, si está activado, pasarían antes
+  por la pantalla de Launcher (un refresco extra por despertar).
+
+Si falta alguna de las dos, el log lo recuerda al arrancar.
 
 ### OTA
 
@@ -126,12 +133,25 @@ valores por defecto de ESP-IDF y sin vuelta atrás.
 ## Compilar
 
 ```bash
-pio run -e TRMNL_X_PAPERDIY
+make venv     # una vez: PlatformIO Core 6.1.19 en .platformio-venv/
+make build
+```
+
+Usa un core de PlatformIO local (`.platformio-core/`, ignorado por git) para
+que otro proyecto que comparta `~/.platformio` no cambie la versión del
+toolchain o del framework. La primera vez descarga unos 5 GB. Hace falta
+PlatformIO Core 6.1.19: la 6.2.0 trae SCons 4.11.1 y pioarduino espera 4.8.1,
+así que el enlazado falla con `No module named 'SCons.Tool.FortranCommon'`.
+`make venv` crea el entorno con 6.1.19; usa `PYTHON=python3.13` si no tienes
+`python3.14`. Equivale a:
+
+```bash
+PLATFORMIO_CORE_DIR="$PWD/.platformio-core" .platformio-venv/bin/pio run -e TRMNL_X_PAPERDIY
 ```
 
 Genera `.pio/build/TRMNL_X_PAPERDIY/trmnl-paperdiy-factory.bin`: bootloader,
 tabla de particiones (`boards/paperdiy_partitions.csv`) y app, para grabar en
-`0x0`.
+`0x0`. `make test` ejecuta las pruebas nativas.
 
 La variante `_dev` añade `-D DEV_FIRMWARE=1` y `-D DO_NOT_LIGHT_SLEEP=1`: las
 pantallas de mensaje hacen un light sleep de 1 s que corta el CDC por USB, y
@@ -159,18 +179,42 @@ imagen la declara vacía. TRMNL guarda ahí la imagen actual, la anterior y el
 logo; con dashboards normales cabe.
 
 La partición de la app que crea Launcher es de 1472 KB. Con el Captive Portal
-2.1 el firmware ocupa unos 1430 KB: quedan unos 42 KB. `check_release_assets.py`
+2.1 y el cambio de matriz de grises el firmware ocupa unos 1437 KB: quedan
+unos 35 KB. `check_release_assets.py`
 falla si la app no cabe (y avisa cuando queda menos de 32 KB); para publicar
 igualmente, por ejemplo solo para instalaciones sin Launcher, pásale
 `--allow-launcher-oversize`.
 
 El entorno compila con `build_type = release` (el resto de la base usa
 `debug`): con `debug` la app son unos 24 KB más y el margen de Launcher baja a
-18 KB. Para depurar, `pio debug` sigue generando una compilación de depuración.
+unos 12 KB. Para depurar, `pio debug` sigue generando una compilación de depuración.
 
-Para actualizar solo TRMNL sin pasar por la SD, lee primero la tabla de
-particiones y graba `firmware.bin` en el offset de la app de TRMNL (en nuestra
-instalación, `trmnlp` en `0x750000`):
+### Actualizar sin perder Wi-Fi ni servidor
+
+Si grabas con esptool o M5Burner en `0x0`, la imagen completa
+(`trmnl-paperdiy-factory.bin`) reescribe el bootloader y la tabla de
+particiones: úsala solo para la primera instalación. Para actualizar, graba
+solo `firmware.bin` en la partición de TRMNL. NVS (redes Wi-Fi y URL del
+servidor) y Launcher quedan intactos:
+
+```bash
+make flash-app PORT=/dev/cu.usbmodemXXXX
+```
+
+O, si ya has compilado:
+
+```bash
+PLATFORMIO_CORE_DIR="$PWD/.platformio-core" \
+  python3 scripts/paperdiy/flash_app.py --port /dev/cu.usbmodemXXXX
+```
+
+El script lee la tabla de particiones, identifica la app por su cabecera
+(`trmnl-firmware`) o por la etiqueta de Launcher, comprueba que la nueva app
+quepa en el hueco y la escribe en su offset. `--dry-run` muestra el plan sin
+escribir nada; si la detección es ambigua, `--offset 0x750000` (el de tu
+instalación) la salta. Sin Launcher escribe en el hueco activo y no arma la
+vuelta atrás del OTA: para actualizaciones de release sigue usando la OTA de
+GitHub. Si prefieres hacerlo a mano:
 
 ```bash
 esptool.py --chip esp32s3 --port /dev/cu.usbmodemXXXX read_flash 0x8000 0xC00 pt.bin
@@ -179,7 +223,8 @@ esptool.py --chip esp32s3 --port /dev/cu.usbmodemXXXX write_flash 0x750000 .pio/
 ```
 
 Para entrar en modo descarga, mantén el botón de encendido unos 2 s (el LED
-rojo parpadea). Al terminar, un clic en ese botón arranca la app.
+rojo parpadea). Al terminar, un clic en ese botón arranca la app. Bajo
+Launcher, si no vuelve sola a TRMNL, elígelo en el menú.
 
 ### Sin Launcher
 
@@ -295,8 +340,8 @@ Probado el 18/11/2026 tras integrar upstream (Captive Portal 2.1, TRMNL
 `45e58db`) y subir la revisión del port a 3:
 
 - [x] Compila (`TRMNL_X_PAPERDIY`), pasan los tests nativos y `pio check`.
-- [x] La app mide 1.464.640 bytes (1430 KB) con `build_type = release`: cabe en
-      los 1472 KB de Launcher, con unos 42 KB de margen.
+- [x] La app mide 1.471.136 bytes (1437 KB) con `build_type = release`: cabe en
+      los 1472 KB de Launcher, con unos 35 KB de margen.
 - [x] Portal 2.1 en la placa: Wi-Fi, red guardada, **Advanced Settings >
       Server** y **Done**. Al salir, `/api/setup` contra LaraPaper (200, API
       key y friendly ID) y `/api/display` (200, PNG de 960×540 a 4 bpp,

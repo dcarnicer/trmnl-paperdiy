@@ -440,8 +440,17 @@ static bool refresh_epaper(int iRefreshMode, bool bWait, bool bAlloc) {
 // Pushes the drawn image to the panel with the right clearing passes
 static void refresh_fastepd(bool bSkipClear) {
   {
-    int rc = bbep.setCustomMatrix(u8_graytable, sizeof(u8_graytable));
-    Log_info("%s [%d]: setCustomMatrix returned %d\r\n", __FILE__, __LINE__, rc);
+    // u8_graytable is the TRMNL X's 10.3" matrix. On the 4.7" ED047TC1 it drives
+    // black only three times per refresh, which looks washed out next to the
+    // panel's own matrix (eight black drives) that initPanel() installs for the
+    // M5 PaperS3/PaperDIY and the LilyGo T5 Pro.
+    bool ed047 = (pDevice->iBoardType == BB_PANEL_M5PAPERS3) || (pDevice->iPanelSize == BBEP_DISPLAY_ED047TC1);
+    if (ed047) {
+      Log_info("%s [%d]: keeping FastEPD's ED047TC1 gray matrix\r\n", __FILE__, __LINE__);
+    } else {
+      int rc = bbep.setCustomMatrix(u8_graytable, sizeof(u8_graytable));
+      Log_info("%s [%d]: setCustomMatrix returned %d\r\n", __FILE__, __LINE__, rc);
+    }
 
  //   if (bbep.getPreviousMode() != BB_MODE_NONE && (bbep.getMode() == BB_MODE_1BPP || bbep.getMode() ==
  //   BB_MODE_2BPP)) {

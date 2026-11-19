@@ -121,7 +121,7 @@ Even when your TRMNL is disconnected (power switch in the off position), its bat
 
 ## **Version Log**
 
-See [releases](https://github.com/usetrmnl/firmware/releases). For older versions go [here](https://github.com/usetrmnl/firmware/issues/95).
+See [releases](https://github.com/usetrmnl/trmnl-firmware/releases). For older versions go [here](https://github.com/usetrmnl/trmnl-firmware/issues/95).
 
 ## **Compilation guide**
 

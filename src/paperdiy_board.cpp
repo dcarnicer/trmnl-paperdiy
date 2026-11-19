@@ -283,6 +283,10 @@ namespace paperdiy {
       // Each PM1 power-on would go through Launcher's boot screen (an extra refresh per wake)
       Log_info("PaperDIY: set Launcher's 'GPIO on boot starts Launcher' to A so wakes skip its screen");
     }
+    if (ddlb == 0) {
+      // On USB the port uses ESP deep sleep, whose timer wakes also show Launcher unless DDLB is set
+      Log_info("PaperDIY: turn off Launcher's 'DeepSleep starts Launcher' so USB timer wakes skip its screen");
+    }
   }
 
   void prepareForDeepSleep() {
