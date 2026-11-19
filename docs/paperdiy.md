@@ -352,6 +352,20 @@ Probado el 18/11/2026 tras integrar upstream (Captive Portal 2.1, TRMNL
       12 bits en el log (`978 mV` en vez de `5096`); corregido.
 - [ ] Un ciclo de despertar y dormir con batería con el portal nuevo.
 
+Probado el 19/11/2026 en hardware real (smoke test de la revisión 4):
+
+- [x] Flash completo de `_dev` en `0x0`: PM1 `fw 0x54`, `PWR_CFG 0x03`,
+      LVP 2999 mV, VIN 5060 mV, batería 4162 mV.
+- [x] Log `keeping FastEPD's ED047TC1 gray matrix`; gradiente 4 bpp de 16
+      niveles servido por `scripts/mock_server.py`, con negro profundo
+      (validado a ojo).
+- [x] Portal Wi-Fi, `/api/setup` 200, `/api/display` 200 y descarga del PNG
+      960×540 a 4 bpp; el equipo se duerme tras el refresco.
+- [x] `make flash-app` escribe solo `app0` en `0x10000`; tras reiniciar,
+      `/api/display` vuelve a funcionar **sin** `/api/setup`: NVS, Wi-Fi y URL
+      del servidor se conservan.
+- [x] Despertar con A en deep sleep (USB) y nuevo `/api/display`.
+
 Pendiente:
 
 - [x] `Percent-Charged` con USB (carga terminada: 100 %) y detección de
@@ -362,4 +376,5 @@ Pendiente:
       (1.8.20-1, pendiente de revisión).
 - [ ] OTA real contra las releases de GitHub (HTTPS y redirección), con la
       primera release que publique `latest.json`.
-- [ ] Ghosting con la matriz de grises de la PaperS3.
+- [ ] Ghosting con la matriz de grises de la PaperS3 (el negro ya se validó
+      en hardware; falta medir el ghosting entre refrescos).
