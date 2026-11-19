@@ -239,6 +239,34 @@ de datos cambia de sitio: las redes Wi-Fi se pierden y hay que volver a
 configurarlas en el portal. Viniendo de Launcher también se pierde la API key;
 en LaraPaper, abre Auto-Join para que `/api/setup` la vuelva a entregar.
 
+## Actualizar dependencias y upstream
+
+```bash
+make check-updates
+```
+
+Es un informe de solo lectura: compara `upstream/main`, consulta las releases y
+las cabeceras de M5PM1, M5PaperDIY-UserDemo, M5Launcher, FastEPD, bb_epaper,
+PNGdec, JPEGDEC, pioarduino y `paperdiy-reader`, y las enseña junto a los pins
+locales de `platformio.ini`. Necesita red; si hay `gh` autenticado usa su token
+para no agotar el límite de la API.
+
+Qué merece la pena mirar:
+
+- **Upstream**: solo lo que afecte a `PARALLEL_EPD`, FastEPD, portal, PM1 o
+  decodificación. El resto de placas no se toca.
+- **M5PM1 / M5PaperDIY-UserDemo**: registro, timer, LVP y apagado del PM1.
+- **M5Launcher**: layout de particiones, NVS y opciones de arranque/OTA.
+- **FastEPD**: init del panel y matriz de grises del ED047TC1.
+- **PNGdec / JPEGDEC**: correcciones de decodificación y seguridad.
+- **pioarduino**: cambiar de plataforma altera el `sdkconfig` y el margen de
+  Launcher; no se sube sin probar.
+- **M5GFX / M5Unified**: este port no las usa; el panel va por FastEPD.
+
+El procedimiento completo (qué probar, cuándo subir `PAPERDIY_PORT_REVISION` y
+cuándo publicar) está en `AGENTS.md`. Tras cualquier cambio que toque panel,
+PM1 o imagen hay que hacer el smoke test de hardware antes de etiquetar.
+
 ## Releases
 
 Al subir un tag `paperdiy-vX.Y.Z-N` (X.Y.Z = versión de `include/config.h`,

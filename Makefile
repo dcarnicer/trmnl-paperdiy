@@ -13,7 +13,7 @@ PORT      ?=
 PIO_RUN = PLATFORMIO_CORE_DIR="$(CORE_DIR)" $(PIO) run -e $(ENV)
 PORT_ARG = $(if $(PORT),--port "$(PORT)",)
 
-.PHONY: venv build test flash-app factory monitor clean
+.PHONY: venv build test check-updates flash-app factory monitor clean
 
 # PlatformIO Core 6.2.0 moves SCons to 4.11.1 and fights pioarduino's 4.8.1
 # package; 6.1.19 is the version the release workflow uses.
@@ -27,6 +27,10 @@ build:
 
 test:
 	PLATFORMIO_CORE_DIR="$(CORE_DIR)" $(PIO) test -e native
+
+# Read-only report of upstream, M5Stack, bitbank2 and PlatformIO updates.
+check-updates:
+	python3 scripts/paperdiy/check_upstreams.py
 
 # App-only update: keeps NVS (Wi-Fi, API URL), LittleFS and M5Launcher.
 flash-app: build
