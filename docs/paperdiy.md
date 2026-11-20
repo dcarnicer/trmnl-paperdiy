@@ -320,6 +320,9 @@ publicar en M5Burner (y así en el catálogo de Launcher), ver
 - Sin modelo, LaraPaper sirve el BMP de 800×480 de la TRMNL original, y con
   FastEPD el firmware no dibuja BMP: la pantalla no cambia. Si el dispositivo
   ya existía sin modelo, asígnalo a mano.
+- Los JPEG tienen que ser de 960×540 y *baseline*: JPEGDEC decodifica los
+  progresivos a 1/8 de tamaño (y los de color corrompían memoria), así que se
+  descartan y la pantalla no cambia. Los PNG no tienen esa limitación.
 - El log detallado por USB es **Advanced Settings > Diagnostics > Serial
   logs**, desactivado por defecto y guardado al momento. Guardar el servidor
   ya no lo cambia: la variante `_dev` escribe por USB hasta que se desactive

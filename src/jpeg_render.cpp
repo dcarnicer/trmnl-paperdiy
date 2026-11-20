@@ -82,6 +82,11 @@ int jpeg_to_epd(const uint8_t *pJPEG, int iDataSize) {
     if (jpg->getWidth() != bbep.width() || jpg->getHeight() != bbep.height()) {
       Log_error("JPEG image size doesn't match display size");
       rc = -1;
+    } else if (jpg->getJPEGType() == JPEG_MODE_PROGRESSIVE) {
+      // JPEGDEC decodes progressive files at 1/8 scale, and colour ones corrupt memory (1.8.5)
+      // or the pixels (later): only baseline JPEGs are drawn
+      Log_error("Progressive JPEGs are not supported");
+      rc = -1;
     } else { // okay to decode
 #ifdef BB_EPAPER
             // bbep.setPanelType(TWO_BIT_PANEL);

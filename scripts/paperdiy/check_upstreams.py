@@ -96,8 +96,8 @@ def local_pins() -> dict[str, str]:
     return {
         "FastEPD": first(r"bitbank2/FastEPD\.git#([0-9a-fA-F]+)", section),
         "bb_epaper": first(r"bitbank2/bb_epaper\.git#([0-9a-fA-F]+)"),
-        "PNGdec": first(r"bitbank2/PNGdec@([^\s]+)"),
-        "JPEGDEC": first(r"bitbank2/JPEGDEC@([^\s]+)"),
+        "PNGdec": first(r"bitbank2/PNGdec(?:@|\.git#)([^\s]+)"),
+        "JPEGDEC": first(r"bitbank2/JPEGDEC(?:@|\.git#)([^\s]+)"),
         "platform": first(r"platform-espressif32/releases/download/([^/]+)/platform-espressif32\.zip", section),
     }
 
@@ -180,7 +180,7 @@ def repos_report() -> None:
         print(f"{'':22} head {head}")
         if pin and pin != "?":
             print(f"{'':22} local pin {pin}")
-            if label in ("FastEPD", "bb_epaper"):
+            if re.fullmatch(r"[0-9a-fA-F]{40}", pin):
                 # The local pin is a commit; compare it with the current head.
                 head_sha = head.split(" ", 1)[0]
                 note = compare(repo, pin, head_sha)

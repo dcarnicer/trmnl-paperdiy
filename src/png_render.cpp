@@ -584,6 +584,14 @@ int png_count_colors(PNG *png, const uint8_t *pData, int iDataSize) {
   Log_info("%s [%d]: png_count_colors: %d\r\n", __FILE__, __LINE__, iColors);
   return iColors;
 } /* png_count_colors() */
+// PNGdec 1.1.7 and later (checked up to 7ef2a09) zero-terminate a 127-byte tEXt
+// Comment/Description one byte past szComment, the last byte of the decoder object.
+// The slack keeps that write inside our allocation until PNGdec fixes the index.
+struct PngWithSlack {
+  PNG png;
+  uint8_t slack[4];
+};
+
 /**
  * @brief Function to decode and display a PNG image from memory
  *        The decoded lines are written directly into the EPD framebuffer
@@ -600,11 +608,13 @@ int png_to_epd(const uint8_t *pPNG, int iDataSize, bool bPrevious) {
     return 0; // no need to decode previous image, we drew a msg/glyph
 #endif
 
-  PNG *png = new (std::nothrow) PNG(); // plain new throws when the heap has no 49 KB block, and aborts
-  if (!png) {
+  // plain new throws when the heap has no 49 KB block, and aborts
+  PngWithSlack *pngAlloc = new (std::nothrow) PngWithSlack();
+  if (!pngAlloc) {
     Log_error("No memory for the PNG decoder");
     return -1;
   }
+  PNG *png = &pngAlloc->png;
   rc = png->openRAM((uint8_t *)pPNG, iDataSize, png_draw);
   png->close();
   if (rc == PNG_SUCCESS) {
@@ -622,7 +632,7 @@ int png_to_epd(const uint8_t *pPNG, int iDataSize, bool bPrevious) {
         CreateSpectra6Pal(); // create a fast color matching palette
         if (bbep.allocBuffer() != BBEP_SUCCESS) {
           Log_error("%s [%d]: bbep.AllocBuffer failed!\n\r", __FILE__, __LINE__);
-          delete png;
+          delete pngAlloc;
           return -1;
         }
         bbep.fillScreen(BBEP_WHITE); // in case the image is too small - undrawn areas will be white
@@ -630,7 +640,7 @@ int png_to_epd(const uint8_t *pPNG, int iDataSize, bool bPrevious) {
         png->openRAM((uint8_t *)pPNG, iDataSize, png_draw_6clr);
         png->decode(NULL, 0);
         png->close();
-        delete (png); // free the decoder instance
+        delete pngAlloc; // free the decoder instance
         bbep.writePlane(); // send the pixels to the display panel
         return REFRESH_FAST;
       }
@@ -646,7 +656,7 @@ int png_to_epd(const uint8_t *pPNG, int iDataSize, bool bPrevious) {
         bbep.startWrite(PLANE_1); // start writing image data (0x10 cmd instead of 0x13)
         png->decode(NULL, 0);
         png->close();
-        delete (png); // free the decoder instance
+        delete pngAlloc; // free the decoder instance
         bbep.writeCmd(UC8151_PON); // turn the power on AFTER writing the data
         bbep.wait();
         return REFRESH_PARTIAL;
@@ -666,7 +676,7 @@ int png_to_epd(const uint8_t *pPNG, int iDataSize, bool bPrevious) {
           bbep.writeData(d, iLen);
         }
       }
-      delete (png); // free the decoder instance
+      delete pngAlloc; // free the decoder instance
       return REFRESH_FULL;
 #endif // BOARD_TRMNL_4CLR
       bbep.setAddrWindow(0, 0, bbep.width(), bbep.height());
@@ -750,6 +760,6 @@ int png_to_epd(const uint8_t *pPNG, int iDataSize, bool bPrevious) {
   } else {
     Log_error("%s [%d]: png->openRAM() returned %d", __FILE__, __LINE__, rc);
   }
-  delete (png); // free the decoder instance
+  delete pngAlloc; // free the decoder instance
   return rc;
 } /* png_to_epd() */
