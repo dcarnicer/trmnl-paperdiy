@@ -89,7 +89,10 @@ bool display_update_epaper(int refreshMode, bool wait, bool writePlane, uint8_t 
   if (writePlane) {
     bbep.writePlane(plane);
   }
-  if (refreshMode == REFRESH_PARTIAL && !bCanDoPartial) {
+  if (bbep.capabilities() & (BBEP_3COLOR | BBEP_4COLOR | BBEP_7COLOR)) {
+    Log_info("Color EPD, must use full refresh mode");
+    refreshMode = REFRESH_FULL;
+  } else if (refreshMode == REFRESH_PARTIAL && !bCanDoPartial) {
     refreshMode = REFRESH_FAST;
     Log_info("Can't do partial refresh, no previous image");
   } else if (refreshMode == REFRESH_PARTIAL) {
@@ -149,6 +152,14 @@ void display_init(void) {
   pinMode(10, OUTPUT); // SD card enable (if it's powered down, the SPI bus may be blocked)
   digitalWrite(10, 1);
 #endif // BOARD_SEEED_STICKY
+
+#ifdef BOARD_ZECTRIX_NOTE4
+  pinMode(6, OUTPUT); // EPD power enable
+  pinMode(17, OUTPUT); // Battery LDO enable
+  digitalWrite(6, HIGH);
+  digitalWrite(17, HIGH);
+#endif // BOARD_ZECTRIX_NOTE4
+
     // Read the panel ID after any board-specific power/CS setup, but before bb_epaper takes over the SPI pins.
     // Only on the first call: the bit-banged read detaches SCK/MOSI from the SPI peripheral, and
     // SPI.begin() is a no-op once the bus is running, so a second read would leave the panel unreachable.
@@ -169,6 +180,13 @@ void display_init(void) {
                 pDevice->epd_mosi_pin, pDevice->epd_sck_pin, 8000000);
   } else { // it's a pre-defined PCB+display in bb_epaper
     bbep.begin(dpList[pDevice->panel_set][0].OneBit);
+  }
+  if (strcmp(DEVICE_MODEL, "seeed_sticky_b") == 0 && bbep.testPanelType() == BBEP_CHIP_SSD16xx) {
+    // New 3.97" panel needs a different ePaper configuration
+    Log_info("Detected SSD1677 (old) Sticky panel type; switching profiles...");
+    hw_config_init("seeed_sticky");
+  } else {
+    Log_info("Detected SSD2677 (new) Sticky panel type");
   }
 #else // Parallel eink devices
 #if defined(BOARD_SEEED_RETERMINAL_E1003)
@@ -230,7 +248,7 @@ void display_wipe(void) {
   for (int i = 0; i < refreshCount; i++) {
     bbep.refresh(REFRESH_FULL); // 2 to 3 minutes of Black/White clearing of the display
   }
-  bbep.sleep(LIGHT_SLEEP);
+  bbep.sleep((bbep.capabilities() & BBEP_4COLOR) ? DEEP_SLEEP : LIGHT_SLEEP);
 #else
   bbep.setMode(BB_MODE_1BPP);
   bbep.fillScreen(BBEP_WHITE);
@@ -318,6 +336,7 @@ static bool draw_image(uint8_t *image_buffer, int data_size, int *pRefreshMode, 
   if (isPNG == true && data_size < MAX_IMAGE_SIZE) {
     Log_info("Drawing PNG");
     iRefreshMode = png_to_epd(image_buffer, data_size, false);
+    if (iRefreshMode < 0) return false; // no decoder memory, or no frame buffer
   } else if (MOTOSHORT(image_buffer) == 0xffd8) {
     Log_info("Drawing JPEG");
     iRefreshMode = jpeg_to_epd(image_buffer, data_size);
@@ -506,7 +525,7 @@ void display_show_image(uint8_t *image_buffer, int data_size, bool bWait, bool b
 void display_sleep(void) {
   Log_info("Goto Sleep...");
 #ifdef BB_EPAPER
-  bbep.sleep(LIGHT_SLEEP);
+  bbep.sleep((bbep.capabilities() & BBEP_4COLOR) ? DEEP_SLEEP : LIGHT_SLEEP);
 #else
   bbep.einkPower(0);
   bbep.deInit();

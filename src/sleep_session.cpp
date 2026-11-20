@@ -144,6 +144,12 @@ static void enterSleep(bool keep_timer) {
 #ifdef BOARD_TRMNL_X_PAPERDIY
   paperdiy::prepareForDeepSleep();
 #endif
+#ifdef BOARD_ZECTRIX_NOTE4
+  digitalWrite(6, LOW); // disable the EPD power
+  gpio_hold_en(GPIO_NUM_17); // MOSFET enabling the battery power
+  gpio_deep_sleep_hold_en(); // Needed to keep the battery power enabled during RTC sleep
+#endif // BOARD_ZECTRIX_NOTE4C
+
   esp_deep_sleep_start();
 }
 
