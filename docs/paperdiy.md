@@ -185,9 +185,10 @@ falla si la app no cabe (y avisa cuando queda menos de 32 KB); para publicar
 igualmente, por ejemplo solo para instalaciones sin Launcher, pásale
 `--allow-launcher-oversize`.
 
-El entorno compila con `build_type = release` (el resto de la base usa
-`debug`): con `debug` la app son unos 24 KB más y el margen de Launcher baja a
-unos 12 KB. Para depurar, `pio debug` sigue generando una compilación de depuración.
+El entorno compila con el `build_type = release` de la base (upstream lo
+adoptó en #859): con `debug` la app son unos 24 KB más y el margen de Launcher
+baja a unos 12 KB. Para depurar, `pio debug` sigue generando una compilación de
+depuración.
 
 ### Actualizar sin perder Wi-Fi ni servidor
 
