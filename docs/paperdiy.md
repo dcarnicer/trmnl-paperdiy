@@ -62,7 +62,8 @@ avisos de batería baja.
 
 - Se mide al despertar, antes de encender la pantalla y la Wi-Fi.
 - Con USB y cargando, repite el último valor medido con batería (la tensión de
-  carga no dice nada del estado); con la carga terminada, 100 %.
+  carga no dice nada del estado); con la carga terminada, 100 %, y lo guarda
+  para que una recarga posterior sin desenchufar no vuelva al valor anterior.
 - Con batería aplica la curva con 8 mV de histéresis y guarda el valor en NVS
   (`pd_batt_pct`).
 - Si con batería baja del 0 % de la curva, muestra "Battery empty" y se apaga
@@ -79,6 +80,11 @@ del botón de encendido. Solo con bajar el umbral a 3,0 V se arregló, así que 
 PM1 parece mirar la caída de `VBAT` bajo la carga del refresco. 3,0 V solo
 salta con la celda casi vacía. El lector de CrossPoint usa 3,4 V sin problema,
 pero pinta con M5GFX; los refrescos rápidos de FastEPD consumen más de golpe.
+
+Según el datasheet, tras un corte por LVP el PM1 solo vuelve a encender cuando
+`VBAT` supera el umbral más 100 mV (3,1 V aquí) o se conecta el USB. `BATT_LVP`
+no se borra con el reset, el modo descarga ni el apagado, así que bajo Launcher
+vale el último que escribió una app; TRMNL lo reescribe en cada arranque.
 
 ### M5Launcher
 
@@ -170,6 +176,10 @@ de release mantiene el light sleep.
 Con `GPIO on boot starts Launcher = A`, los despertares por temporizador van
 directos a la última app que arrancó. Para volver al lector, mantén A
 pulsado y pulsa el botón de encendido para abrir Launcher.
+
+El lector desactiva el reset por un clic del botón de encendido (`BTN_CFG_1`,
+0x49) y el PM1 lo conserva incluso apagado; TRMNL lo vuelve a activar al
+arrancar, para que un clic siga refrescando.
 
 Con Launcher instalado **no grabes en `0x10000`** (ni `pio run -t upload`
 ni `esptool write_flash 0x10000`): sobrescribirías Launcher.

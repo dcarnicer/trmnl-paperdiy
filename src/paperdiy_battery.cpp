@@ -50,7 +50,11 @@ namespace paperdiy_battery {
 
     if (paperdiy::usbStatus() == UsbStatus::CONNECTED) {
       // The terminal voltage runs high under charge current: it says nothing about the charge
-      if (paperdiy::chargingStatus() == ChargingStatus::NOT_CHARGING) return 100; // charger done
+      if (paperdiy::chargingStatus() == ChargingStatus::NOT_CHARGING) { // charger done
+        // Saved, so a later top-up charge on the same cable doesn't report the pre-charge value
+        if (saved != 100) preferences.putInt(KEY_PERCENT, 100);
+        return 100;
+      }
       return saved >= 0 ? saved : percentFromMillivolts(mv);
     }
 

@@ -40,6 +40,7 @@ namespace {
   constexpr uint8_t REG_TIM_CNT0 = 0x38;   // 31-bit timer in seconds, little endian (0x38-0x3B)
   constexpr uint8_t REG_TIM_CFG = 0x3C;    // [3] start, [2:0] action on expiry
   constexpr uint8_t REG_TIM_KEY = 0x3D;    // 0xA5 loads the timer
+  constexpr uint8_t REG_BTN_CFG_1 = 0x49;  // [7] DL_LOCK, [0] SINGLE_RESET_DIS; kept across reset and power-off
   constexpr uint8_t REG_NEO_CFG = 0x50;    // 0 = PM1 NeoPixel engine off
 
   constexpr uint8_t SYS_CMD_SHUTDOWN = 0xA0 | 0x01;
@@ -132,6 +133,10 @@ namespace paperdiy {
     // Hardware cut-off at 3.0 V: only a really empty cell trips it (see BATTERY_LVP_MV;
     // the software cut-off in paperdiy_battery stops earlier). Best effort.
     writeReg(REG_BATT_LVP, static_cast<uint8_t>((BATTERY_LVP_MV - 2000) * 100 / 781));
+    // paperdiy-reader turns off the power button's single-click reset and the PM1
+    // keeps that setting into this app: restore the click that refreshes TRMNL
+    // (and leave download mode unlocked). Best effort; the timing fields stay.
+    updateReg(REG_BTN_CFG_1, 0x81, 0);
 
     // GPIO2: push-pull output for the EPD rail, left as it is until the display asks.
     ok = updateReg(REG_GPIO_FUNC0, 0x03 << 4, 0) && ok;
