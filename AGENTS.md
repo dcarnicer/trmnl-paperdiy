@@ -49,9 +49,22 @@ is a starting point, not a merge.
    ```
 
 4. If the change touches the panel, PM1, power, sleep or image rendering, do a
-   hardware smoke test: flash the `_dev` factory image, confirm
-   `keeping FastEPD's ED047TC1 gray matrix` in the serial log and display a
-   4 bpp gradient (`scripts/mock_server.py`).
+   hardware smoke test with the board on USB:
+
+   ```bash
+   make flash-dev PORT=/dev/cu.usbmodemXXXX
+   make smoke PORT=/dev/cu.usbmodemXXXX SMOKE_ARGS=--errors
+   ```
+
+   It points the board at `scripts/mock_server.py`, checks the log
+   (`keeping FastEPD's ED047TC1 gray matrix`, `HTTPS_SUCCESS`, no FastEPD error
+   or crash) and compares the framebuffer with the 4 bpp gradient it served,
+   then restores the board's server. Look at the panel too: the capture is the
+   framebuffer, not the panel. Power and battery paths (PM1 power-off, timer,
+   low-battery cut-off) still need a manual check on battery. Flash the normal
+   build back (`make flash-app`) when done; see `docs/paperdiy-dev.md`.
+   For other checks, drive the dev build with `scripts/paperdiy/remote.py`
+   (`status`, `shot`, `refresh`, `button:*`, `wake:timer`, `server:URL`).
 5. Bump `PAPERDIY_PORT_REVISION` in `include/paperdiy_ota.h` and publish a
    release tag only after the hardware test. The GitHub release workflow builds
    `trmnl-paperdiy-latest.bin`, the app-only image and `latest.json`; M5Burner
@@ -60,8 +73,9 @@ is a starting point, not a merge.
 
 ## Build environment
 
-Use `make venv` once and then `make build`, `make test` and
-`make flash-app PORT=...`. PlatformIO Core 6.1.19 is required: 6.2.0 ships
+Use `make venv` once and then `make build`, `make test` (native and
+`scripts/tests/`) and `make flash-app PORT=...` (`make flash-dev` for the dev
+build with the serial remote; never leave it on someone else's board). PlatformIO Core 6.1.19 is required: 6.2.0 ships
 SCons 4.11.1 and breaks pioarduino's 4.8.1 package with
 `No module named 'SCons.Tool.FortranCommon'`.
 

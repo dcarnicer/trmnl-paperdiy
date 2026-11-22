@@ -25,6 +25,9 @@
 #include <paperdiy_ota.h>
 #include <paperdiy_sleep_state.h>
 #include <status_screens.h>
+#ifdef PAPERDIY_DEV_REMOTE
+#include <paperdiy_dev_remote.h>
+#endif
 #endif
 
 #ifdef BOARD_TRMNL_X
@@ -100,6 +103,9 @@ WakeContext readWakeContext(void) {
   if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED && (paperdiy::pm1WakeSource() & paperdiy::WAKE_TIMER)) {
     wakeup_reason = ESP_SLEEP_WAKEUP_TIMER;
   }
+#ifdef PAPERDIY_DEV_REMOTE
+  paperdiy_dev_remote::injectedWake(&wakeup_reason); // CMD:REFRESH, BUTTON or WAKE from the dev remote
+#endif
 #endif
   bool should_show_error_now =
     (wakeup_reason != ESP_SLEEP_WAKEUP_TIMER); // don't immediately show errors on timer wakeup
@@ -132,7 +138,11 @@ void startBoardHardware(const WakeContext &wake, uint32_t init_time) {
   bool double_click = false;
   if (wake.gpio) {
     Log_info("GPIO wakeup detected (%d)", wake.reason);
+#if defined(BOARD_TRMNL_X_PAPERDIY) && defined(PAPERDIY_DEV_REMOTE)
+    ButtonPressResult button = paperdiy_dev_remote::injectedPressOr(read_button_presses);
+#else
     ButtonPressResult button = read_button_presses();
+#endif
     wait_for_serial();
     double_click = button_wake_act(button);
   } else {

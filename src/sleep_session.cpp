@@ -24,6 +24,9 @@
 #include <paperdiy_board.h>
 #include <paperdiy_ota.h>
 #include <paperdiy_sleep_state.h>
+#ifdef PAPERDIY_DEV_REMOTE
+#include <paperdiy_dev_remote.h>
+#endif
 #endif
 
 #ifdef BOARD_TRMNL_X
@@ -63,6 +66,9 @@ static uint64_t timerSleepUs([[maybe_unused]] bool keep_timer) {
  * @return none
  */
 static void enterSleep(bool keep_timer) {
+#if defined(BOARD_TRMNL_X_PAPERDIY) && defined(PAPERDIY_DEV_REMOTE)
+  paperdiy_dev_remote::beforeSleep(); // a host on USB can hold the board awake here
+#endif
   Log.info("%s [%d]: go to sleep\r\n", __FILE__, __LINE__);
   submitStoredLogs();
 
@@ -178,6 +184,9 @@ void updateTimeSinceSleep(void) {
 }
 
 void goToSleepButtonOnly(void) {
+#if defined(BOARD_TRMNL_X_PAPERDIY) && defined(PAPERDIY_DEV_REMOTE)
+  paperdiy_dev_remote::beforeSleep(); // a host on USB can hold the board awake here
+#endif
   submitStoredLogs();
   if (WiFi.status() == WL_CONNECTED) {
     WiFi.disconnect();
@@ -302,15 +311,21 @@ void wifiErrorDeepSleep(void) {
 // A panic reset, so the next boot can report it.
 static void awake_time_limit_reached(void *arg) { esp_system_abort("Awake time limit reached"); }
 
+static esp_timer_handle_t awake_limit_timer = nullptr;
+
 void awake_time_limit_start(void) {
-  esp_timer_handle_t timer;
   esp_timer_create_args_t timerArgs = {};
 
   timerArgs.callback = awake_time_limit_reached;
   timerArgs.name = "awake_limit";
-  if (esp_timer_create(&timerArgs, &timer) == ESP_OK) {
-    esp_timer_start_once(timer, (uint64_t)AWAKE_TIME_LIMIT_MS * 1000);
+  if (esp_timer_create(&timerArgs, &awake_limit_timer) == ESP_OK) {
+    esp_timer_start_once(awake_limit_timer, (uint64_t)AWAKE_TIME_LIMIT_MS * 1000);
   } else {
+    awake_limit_timer = nullptr;
     Log_error("Awake time limit timer not created");
   }
+}
+
+void awake_time_limit_stop(void) {
+  if (awake_limit_timer != nullptr) esp_timer_stop(awake_limit_timer);
 }

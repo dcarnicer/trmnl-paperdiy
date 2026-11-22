@@ -13,7 +13,7 @@ PORT      ?=
 PIO_RUN = PLATFORMIO_CORE_DIR="$(CORE_DIR)" $(PIO) run -e $(ENV)
 PORT_ARG = $(if $(PORT),--port "$(PORT)",)
 
-.PHONY: venv build test check-updates flash-app factory monitor clean
+.PHONY: venv build test check-updates flash-app flash-dev remote smoke factory monitor clean
 
 # PlatformIO Core 6.2.0 moves SCons to 4.11.1 and fights pioarduino's 4.8.1
 # package; 6.1.19 is the version the release workflow uses.
@@ -27,6 +27,7 @@ build:
 
 test:
 	PLATFORMIO_CORE_DIR="$(CORE_DIR)" $(PIO) test -e native
+	python3 -m unittest discover -s scripts/tests
 
 # Read-only report of upstream, M5Stack, bitbank2 and PlatformIO updates.
 check-updates:
@@ -34,7 +35,21 @@ check-updates:
 
 # App-only update: keeps NVS (Wi-Fi, API URL), LittleFS and M5Launcher.
 flash-app: build
-	PLATFORMIO_CORE_DIR="$(CORE_DIR)" python3 scripts/paperdiy/flash_app.py $(PORT_ARG)
+	PLATFORMIO_CORE_DIR="$(CORE_DIR)" python3 scripts/paperdiy/flash_app.py \
+		--app "$(CURDIR)/.pio/build/$(ENV)/firmware.bin" $(PORT_ARG)
+
+# The dev build with the serial remote and USB logging, app only like flash-app.
+# Never leave it on a board you do not control (docs/paperdiy-dev.md).
+flash-dev:
+	$(MAKE) flash-app ENV=TRMNL_X_PAPERDIY_dev PORT="$(PORT)"
+
+# Steps for the dev remote: make remote STEPS="status shot:home" (docs/paperdiy-dev.md)
+remote:
+	python3 scripts/paperdiy/remote.py $(PORT_ARG) $(STEPS)
+
+# Hardware smoke test over USB, on the dev build: make smoke PORT=... [SMOKE_ARGS=--errors]
+smoke:
+	python3 scripts/paperdiy/smoke.py $(PORT_ARG) $(SMOKE_ARGS)
 
 # First install or recovery: bootloader + partition table + app at 0x0.
 factory: build

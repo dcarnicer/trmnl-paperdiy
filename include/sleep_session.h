@@ -35,3 +35,6 @@ void wifiErrorDeepSleep(void);
 
 /** Restart the device if this wake has not reached deep sleep within 20 minutes. Not used on the X. */
 void awake_time_limit_start(void);
+
+/** Stops that limit (the PaperDIY dev remote, which holds the board awake with its own idle limit). */
+void awake_time_limit_stop(void);

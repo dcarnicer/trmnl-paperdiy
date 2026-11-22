@@ -157,12 +157,16 @@ PLATFORMIO_CORE_DIR="$PWD/.platformio-core" .platformio-venv/bin/pio run -e TRMN
 
 Genera `.pio/build/TRMNL_X_PAPERDIY/trmnl-paperdiy-factory.bin`: bootloader,
 tabla de particiones (`boards/paperdiy_partitions.csv`) y app, para grabar en
-`0x0`. `make test` ejecuta las pruebas nativas.
+`0x0`. `make test` ejecuta las pruebas nativas y las de los scripts
+(`scripts/tests/`).
 
 La variante `_dev` añade `-D DEV_FIRMWARE=1` y `-D DO_NOT_LIGHT_SLEEP=1`: las
 pantallas de mensaje hacen un light sleep de 1 s que corta el CDC por USB, y
 sin ese flag el log serie se queda mudo hasta el siguiente arranque. El build
-de release mantiene el light sleep.
+de release mantiene el light sleep. También lleva el control remoto por USB
+(`-D PAPERDIY_DEV_REMOTE=1`) que usan `scripts/paperdiy/remote.py` y
+`make smoke`; ver [paperdiy-dev.md](paperdiy-dev.md). Se graba con
+`make flash-dev PORT=…`.
 
 ## Instalar
 
@@ -276,7 +280,9 @@ Qué merece la pena mirar:
 
 El procedimiento completo (qué probar, cuándo subir `PAPERDIY_PORT_REVISION` y
 cuándo publicar) está en `AGENTS.md`. Tras cualquier cambio que toque panel,
-PM1 o imagen hay que hacer el smoke test de hardware antes de etiquetar.
+PM1 o imagen hay que hacer el smoke test de hardware antes de etiquetar:
+`make flash-dev` y `make smoke` ([paperdiy-dev.md](paperdiy-dev.md)), y mirar
+el panel.
 
 ## Releases
 
@@ -407,6 +413,16 @@ Probado el 19/11/2026 en hardware real (smoke test de la revisión 4):
       `/api/display` vuelve a funcionar **sin** `/api/setup`: NVS, Wi-Fi y URL
       del servidor se conservan.
 - [x] Despertar con A en deep sleep (USB) y nuevo `/api/display`.
+
+Probado el 22/11/2026 en hardware real (FastEPD `bd2d9c6` y control remoto
+por USB; ver [paperdiy-dev.md](paperdiy-dev.md#estado)):
+
+- [x] `make smoke --errors` con el `_dev`: 37/37. Log
+      `keeping FastEPD's ED047TC1 gray matrix`, `HTTPS_SUCCESS` sin errores de
+      FastEPD, y el framebuffer igual byte a byte al degradado de 4 bpp
+      servido por `scripts/mock_server.py`, en despertar por botón y por
+      temporizador.
+- [x] Panel a ojo: 16 grises por mitad y negro profundo.
 
 Pendiente:
 
