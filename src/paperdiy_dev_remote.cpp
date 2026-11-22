@@ -349,6 +349,7 @@ namespace paperdiy_dev_remote {
     Log_info("PaperDIY dev remote: holding the board awake (session %u)", (unsigned)s.seq);
     Serial.printf("REMOTE:READY seq=%u version=%s wake=%d\n", (unsigned)s.seq, paperdiy_ota::version().c_str(),
                   (int)wakeup_reason);
+    Serial.flush();
 
     uint32_t last_command_ms = millis();
     uint32_t last_check_ms = millis();
@@ -357,6 +358,9 @@ namespace paperdiy_dev_remote {
         have_line = false;
         last_command_ms = millis();
         if (!handle(reader.line())) break;
+        // Push the answer's last bytes out now: on the board a shot's final "#end"
+        // line once sat in the USB TX buffer until the next write, 60 s later
+        Serial.flush();
       }
       if (millis() - last_command_ms >= IDLE_MS) {
         Serial.println("REMOTE:IDLE no command for 15 minutes, sleeping");

@@ -32,12 +32,12 @@ Visto en hardware el 22/11/2026:
 - Con una app en marcha y el USB conectado, esptool mete la placa en modo
   descarga él solo (reset por USB-JTAG); no hace falta tocar nada.
 - Si la placa duerme, ponla en modo descarga a mano: botón de encendido unos
-  2 s, hasta que el LED rojo parpadee. Así el PM1 la retiene en el bootloader
-  y el reset de esptool no la saca: al terminar, un clic en encendido.
-- El reset por RTS del final a veces la deja en el bootloader (el puerto sigue
-  ahí, mudo). La saca
-  `esptool --chip esp32s3 --port … --before no-reset --after watchdog-reset chip-id`
-  o un clic en encendido.
+  2 s, hasta que el LED rojo parpadee.
+- El reset por RTS del final de esptool la deja a menudo en el bootloader (el
+  puerto sigue ahí, mudo), sobre todo tras el modo descarga del PM1. El reset
+  por watchdog la arrancó siempre, también en ese caso:
+  `esptool --chip esp32s3 --port … --before no-reset --after watchdog-reset chip-id`.
+  Si no, un clic en encendido.
 
 ## Cómo funciona
 
@@ -257,3 +257,8 @@ completa de la flash antes y restaurada después, verificada con
     `remote.py` cierra la línea pendiente al coger la placa.
   - El despertar apaga la Wi-Fi en cuanto recibe la imagen, así que el smoke
     test ya no exige `wifi=1` al final: mira `wifi_saved`.
+- Release `1.8.20-5`, misma placa: la primera pasada dio 37/37, pero una
+  captura tardó 60 s porque la línea `#end` se quedó en el buffer de salida del
+  USB hasta la siguiente escritura. El bucle hace `Serial.flush()` tras cada
+  respuesta; la segunda pasada (`20261122-213951`) dio 37/37 en 69 s sin
+  reintentos.

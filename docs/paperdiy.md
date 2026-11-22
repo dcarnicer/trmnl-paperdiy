@@ -423,6 +423,10 @@ por USB; ver [paperdiy-dev.md](paperdiy-dev.md#estado)):
       servido por `scripts/mock_server.py`, en despertar por botón y por
       temporizador.
 - [x] Panel a ojo: 16 grises por mitad y negro profundo.
+- [x] Release 1.8.20-5 (rama `paperdiy` con la revisión 5): `make smoke
+      --errors` 37/37 con su `_dev` (run `20261122-213951`). El build de
+      release, grabado solo como app, arranca, refresca contra el servidor
+      propio y se duerme (41 s con el USB activo).
 
 Pendiente:
 
