@@ -23,7 +23,7 @@
 // scripts/paperdiy/check_release_version.py checks both against the tag.
 // Bump it whenever the port's firmware changes, so a release tag is never reused
 // and an installed board sees the update.
-#define PAPERDIY_PORT_REVISION 5
+#define PAPERDIY_PORT_REVISION 6
 
 #ifndef PAPERDIY_OTA_MANIFEST_URL
 #define PAPERDIY_OTA_MANIFEST_URL "https://github.com/dcarnicer/trmnl-paperdiy/releases/latest/download/latest.json"
