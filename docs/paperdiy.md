@@ -428,6 +428,18 @@ por USB; ver [paperdiy-dev.md](paperdiy-dev.md#estado)):
       release, grabado solo como app, arranca, refresca contra el servidor
       propio y se duerme (41 s con el USB activo).
 
+Probado el 26/11/2026 en hardware real (revisión 6: upstream `aa5ebf6` y
+FastEPD `da4fa86`):
+
+- [x] `make smoke --errors` con el `_dev`: 37/37 (run
+      `20261126-140731`). Degradado por botón y temporizador,
+      `HTTPS_SUCCESS`, sin errores de FastEPD ni cuelgues, y el framebuffer
+      igual byte a byte al PNG de 4 bpp; la imagen basura da error y el
+      siguiente despertar se recupera. URL del servidor restaurada.
+- [x] Panel a ojo: 16 grises por mitad y negro profundo.
+- [x] Build de release grabado solo como app en `app0` (hash verificado) y
+      release `paperdiy-v1.8.20-6` publicada.
+
 Pendiente:
 
 - [x] `Percent-Charged` con USB (carga terminada: 100 %) y detección de
