@@ -148,7 +148,9 @@ Usa un core de PlatformIO aparte, uno por versión de plataforma en
 `scripts/pio_core_dir.py` según la plataforma de `ENV`), para que otro proyecto
 que comparta `~/.platformio` no cambie la versión del toolchain o del
 framework. Lo comparten todos los clones y worktrees; la primera vez descarga
-unos 5 GB. Hace falta
+unos 5 GB. Hace falta `python3`. Un `.platformio-core/` que hayan dejado builds
+anteriores ya no se usa y se puede borrar; tras subir la versión de la
+plataforma, borra también el core viejo de `~/.platformio-cores`. Hace falta
 PlatformIO Core 6.1.19: la 6.2.0 trae SCons 4.11.1 y pioarduino espera 4.8.1,
 así que el enlazado falla con `No module named 'SCons.Tool.FortranCommon'`.
 `make venv` crea el entorno con 6.1.19; usa `PYTHON=python3.13` si no tienes

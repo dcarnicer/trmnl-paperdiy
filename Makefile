@@ -3,19 +3,21 @@
 # The pioarduino platform pins exact toolchain/framework packages. Keeping them
 # in a separate core directory stops other PlatformIO projects (which share
 # ~/.platformio) from replacing them with a different version. There is one
-# core per platform release under ~/.platformio-cores (see
+# core per pinned platform release under ~/.platformio-cores (see
 # scripts/pio_core_dir.py), chosen from the platform of $(ENV) and shared by
 # every clone and worktree, so a toolchain is downloaded once per release.
+# Environments with custom_sdkconfig would keep ./.platformio-core.
 PIO       ?= $(if $(wildcard $(CURDIR)/.platformio-venv/bin/pio),$(CURDIR)/.platformio-venv/bin/pio,pio)
 PYTHON    ?= python3.14
 ENV       ?= TRMNL_X_PAPERDIY
-ifndef CORE_DIR
-CORE_DIR  := $(shell python3 "$(CURDIR)/scripts/pio_core_dir.py" --pio "$(PIO)" "$(ENV)")
-endif
+# CORE_DIR=/path or an exported PLATFORMIO_CORE_DIR overrides the choice. It is
+# resolved only by the targets that run pio.
+CORE_DIR  ?= $(or $(PLATFORMIO_CORE_DIR),$(shell python3 "$(CURDIR)/scripts/pio_core_dir.py" --pio "$(PIO)" "$(ENV)"))
+PIO_CORE   = $(or $(strip $(CORE_DIR)),$(error Cannot choose the PlatformIO core for ENV=$(ENV) (see the message above); set CORE_DIR=/path))
 VENV      ?= $(CURDIR)/.platformio-venv
 PORT      ?=
 
-PIO_RUN = PLATFORMIO_CORE_DIR="$(CORE_DIR)" $(PIO) run -e $(ENV)
+PIO_RUN = PLATFORMIO_CORE_DIR="$(PIO_CORE)" $(PIO) run -e $(ENV)
 PORT_ARG = $(if $(PORT),--port "$(PORT)",)
 
 .PHONY: venv build test check-updates flash-app flash-dev remote smoke factory monitor clean core-dir
@@ -31,7 +33,7 @@ build:
 	$(PIO_RUN)
 
 test:
-	PLATFORMIO_CORE_DIR="$(CORE_DIR)" $(PIO) test -e native
+	PLATFORMIO_CORE_DIR="$(PIO_CORE)" $(PIO) test -e native
 	python3 -m unittest discover -s scripts/tests
 
 # Read-only report of upstream, M5Stack, bitbank2 and PlatformIO updates.
@@ -40,7 +42,7 @@ check-updates:
 
 # App-only update: keeps NVS (Wi-Fi, API URL), LittleFS and M5Launcher.
 flash-app: build
-	PLATFORMIO_CORE_DIR="$(CORE_DIR)" python3 scripts/paperdiy/flash_app.py \
+	PLATFORMIO_CORE_DIR="$(PIO_CORE)" python3 scripts/paperdiy/flash_app.py \
 		--app "$(CURDIR)/.pio/build/$(ENV)/firmware.bin" $(PORT_ARG)
 
 # The dev build with the serial remote and USB logging, app only like flash-app.
@@ -59,15 +61,15 @@ smoke:
 # First install or recovery: bootloader + partition table + app at 0x0.
 factory: build
 	@test -n "$(PORT)" || (echo "Usage: make factory PORT=/dev/cu.usbmodemXXXX" && exit 1)
-	PLATFORMIO_CORE_DIR="$(CORE_DIR)" $(PIO) pkg exec -- esptool --chip esp32s3 --port "$(PORT)" --baud 921600 \
+	PLATFORMIO_CORE_DIR="$(PIO_CORE)" $(PIO) pkg exec -- esptool --chip esp32s3 --port "$(PORT)" --baud 921600 \
 		write_flash 0x0 "$(CURDIR)/.pio/build/$(ENV)/trmnl-paperdiy-factory.bin"
 
 monitor:
-	PLATFORMIO_CORE_DIR="$(CORE_DIR)" $(PIO) device monitor -e $(ENV)
+	PLATFORMIO_CORE_DIR="$(PIO_CORE)" $(PIO) device monitor -e $(ENV)
 
 clean:
 	$(PIO_RUN) -t clean
 
 # Print the PlatformIO core this checkout builds with (used by scripts).
 core-dir:
-	@echo $(CORE_DIR)
+	@echo "$(PIO_CORE)"
