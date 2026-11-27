@@ -157,7 +157,7 @@ así que el enlazado falla con `No module named 'SCons.Tool.FortranCommon'`.
 `python3.14`. Equivale a:
 
 ```bash
-PLATFORMIO_CORE_DIR="$(make -s core-dir)" .platformio-venv/bin/pio run -e TRMNL_X_PAPERDIY
+core="$(make -s core-dir)" && PLATFORMIO_CORE_DIR="$core" .platformio-venv/bin/pio run -e TRMNL_X_PAPERDIY
 ```
 
 Genera `.pio/build/TRMNL_X_PAPERDIY/trmnl-paperdiy-factory.bin`: bootloader,
@@ -224,7 +224,7 @@ make flash-app PORT=/dev/cu.usbmodemXXXX
 O, si ya has compilado:
 
 ```bash
-PLATFORMIO_CORE_DIR="$(make -s core-dir)" \
+core="$(make -s core-dir)" && PLATFORMIO_CORE_DIR="$core" \
   python3 scripts/paperdiy/flash_app.py --port /dev/cu.usbmodemXXXX
 ```
 

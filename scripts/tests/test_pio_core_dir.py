@@ -78,8 +78,22 @@ class ScriptTest(unittest.TestCase):
         boards = self.directory / "boards"
         boards.mkdir()
         (boards / "tuned.json").write_text(json.dumps({"espidf": {"custom_sdkconfig": ["X=y"]}}))
+        result = self.run_script([
+            ["platformio", [["boards_dir", str(boards)]]],
+            [f"env:{ENV}", [["platform", PIOARDUINO], ["board", "tuned"]]],
+        ])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(Path(result.stdout.strip()), PROJECT / ".platformio-core")
+
+    def test_empty_custom_sdkconfig_still_keeps_the_checkout_core(self):
         result = self.run_script([[f"env:{ENV}", [
-            ["platform", PIOARDUINO], ["board", "tuned"], ["boards_dir", str(boards)]]]])
+            ["platform", PIOARDUINO], ["custom_sdkconfig", ""]]]])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(Path(result.stdout.strip()), PROJECT / ".platformio-core")
+
+    def test_board_espidf_override_keeps_the_checkout_core(self):
+        result = self.run_script([[f"env:{ENV}", [
+            ["platform", PIOARDUINO], ["board_espidf.custom_sdkconfig", ["X=y"]]]]])
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(Path(result.stdout.strip()), PROJECT / ".platformio-core")
 
