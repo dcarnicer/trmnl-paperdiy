@@ -143,16 +143,19 @@ make venv     # una vez: PlatformIO Core 6.1.19 en .platformio-venv/
 make build
 ```
 
-Usa un core de PlatformIO local (`.platformio-core/`, ignorado por git) para
-que otro proyecto que comparta `~/.platformio` no cambie la versión del
-toolchain o del framework. La primera vez descarga unos 5 GB. Hace falta
+Usa un core de PlatformIO aparte, uno por versión de plataforma en
+`~/.platformio-cores/` (`make -s core-dir` muestra cuál; lo elige
+`scripts/pio_core_dir.py` según la plataforma de `ENV`), para que otro proyecto
+que comparta `~/.platformio` no cambie la versión del toolchain o del
+framework. Lo comparten todos los clones y worktrees; la primera vez descarga
+unos 5 GB. Hace falta
 PlatformIO Core 6.1.19: la 6.2.0 trae SCons 4.11.1 y pioarduino espera 4.8.1,
 así que el enlazado falla con `No module named 'SCons.Tool.FortranCommon'`.
 `make venv` crea el entorno con 6.1.19; usa `PYTHON=python3.13` si no tienes
 `python3.14`. Equivale a:
 
 ```bash
-PLATFORMIO_CORE_DIR="$PWD/.platformio-core" .platformio-venv/bin/pio run -e TRMNL_X_PAPERDIY
+PLATFORMIO_CORE_DIR="$(make -s core-dir)" .platformio-venv/bin/pio run -e TRMNL_X_PAPERDIY
 ```
 
 Genera `.pio/build/TRMNL_X_PAPERDIY/trmnl-paperdiy-factory.bin`: bootloader,
@@ -219,7 +222,7 @@ make flash-app PORT=/dev/cu.usbmodemXXXX
 O, si ya has compilado:
 
 ```bash
-PLATFORMIO_CORE_DIR="$PWD/.platformio-core" \
+PLATFORMIO_CORE_DIR="$(make -s core-dir)" \
   python3 scripts/paperdiy/flash_app.py --port /dev/cu.usbmodemXXXX
 ```
 

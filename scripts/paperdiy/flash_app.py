@@ -52,6 +52,25 @@ TYPE_DATA = 0x01
 SUBTYPE_DATA_OTA = 0x00
 
 
+def platformio_core_dir() -> Path:
+    """PLATFORMIO_CORE_DIR, else the core the Makefile builds with, else ~/.platformio."""
+    explicit = os.environ.get("PLATFORMIO_CORE_DIR")
+    if explicit:
+        return Path(explicit)
+    try:
+        result = subprocess.run(
+            ["make", "-s", "-C", str(PROJECT_DIR), "core-dir"],
+            capture_output=True, text=True, check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        result = None
+    if result and result.stdout.strip():
+        core_dir = Path(result.stdout.strip())
+        if core_dir.is_dir():
+            return core_dir
+    return Path.home() / ".platformio"
+
+
 def find_esptool() -> list[str]:
     explicit = os.environ.get("ESPTOOL")
     if explicit:
@@ -60,10 +79,7 @@ def find_esptool() -> list[str]:
         path = shutil.which(name)
         if path:
             return [path]
-    core_dir = Path(os.environ.get("PLATFORMIO_CORE_DIR", ""))
-    if not core_dir:
-        local_core = PROJECT_DIR / ".platformio-core"
-        core_dir = local_core if local_core.is_dir() else Path.home() / ".platformio"
+    core_dir = platformio_core_dir()
     penv_python = core_dir / "penv" / "bin" / "python"
     tool_esptool = core_dir / "packages" / "tool-esptoolpy" / "esptool.py"
     if penv_python.is_file() and tool_esptool.is_file():

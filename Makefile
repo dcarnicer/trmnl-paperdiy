@@ -1,19 +1,24 @@
 # Build helpers for the PaperDIY port.
 #
 # The pioarduino platform pins exact toolchain/framework packages. Keeping them
-# in a project-local core directory stops other PlatformIO projects (which share
-# ~/.platformio) from replacing them with a different version.
+# in a separate core directory stops other PlatformIO projects (which share
+# ~/.platformio) from replacing them with a different version. There is one
+# core per platform release under ~/.platformio-cores (see
+# scripts/pio_core_dir.py), chosen from the platform of $(ENV) and shared by
+# every clone and worktree, so a toolchain is downloaded once per release.
 PIO       ?= $(if $(wildcard $(CURDIR)/.platformio-venv/bin/pio),$(CURDIR)/.platformio-venv/bin/pio,pio)
 PYTHON    ?= python3.14
 ENV       ?= TRMNL_X_PAPERDIY
-CORE_DIR  ?= $(CURDIR)/.platformio-core
+ifndef CORE_DIR
+CORE_DIR  := $(shell python3 "$(CURDIR)/scripts/pio_core_dir.py" --pio "$(PIO)" "$(ENV)")
+endif
 VENV      ?= $(CURDIR)/.platformio-venv
 PORT      ?=
 
 PIO_RUN = PLATFORMIO_CORE_DIR="$(CORE_DIR)" $(PIO) run -e $(ENV)
 PORT_ARG = $(if $(PORT),--port "$(PORT)",)
 
-.PHONY: venv build test check-updates flash-app flash-dev remote smoke factory monitor clean
+.PHONY: venv build test check-updates flash-app flash-dev remote smoke factory monitor clean core-dir
 
 # PlatformIO Core 6.2.0 moves SCons to 4.11.1 and fights pioarduino's 4.8.1
 # package; 6.1.19 is the version the release workflow uses.
@@ -62,3 +67,7 @@ monitor:
 
 clean:
 	$(PIO_RUN) -t clean
+
+# Print the PlatformIO core this checkout builds with (used by scripts).
+core-dir:
+	@echo $(CORE_DIR)

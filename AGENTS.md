@@ -79,4 +79,8 @@ build with the serial remote; never leave it on someone else's board). PlatformI
 SCons 4.11.1 and breaks pioarduino's 4.8.1 package with
 `No module named 'SCons.Tool.FortranCommon'`.
 
+`make` builds with the PlatformIO core for the platform of `ENV`, one per
+platform release under `~/.platformio-cores` and shared by every clone and
+worktree (`scripts/pio_core_dir.py` picks it; `make -s core-dir` prints it).
+
 Do not commit `.platformio-core/`, `.platformio-venv/`, `.pio/` or `dist/`.
